@@ -1316,9 +1316,10 @@ async function resolveVideoNoteDestination(videoId, videoTitle, now) {
     vault,
     folder,
     notePath,
-    // String mappings were created by the old hierarchical exporter. Keep the
-    // old entries and append a fresh table rather than appending a bare row.
-    includeTableHeader: existingMapping?.corpusTableInitialized !== true,
+    // Historical mappings may point at either the old hierarchical export or
+    // the original 11-column table. Start a fresh wide table for both so a
+    // three-column row is never appended to a table with a different shape.
+    includeTableHeader: existingMapping?.corpusTableFormat !== "wide-v2",
   };
 }
 
@@ -1335,7 +1336,7 @@ async function recordCorpusExport(record) {
   ].slice(0, 300);
   const mappings = {
     ...(stored[CORPUS_VIDEO_NOTES_KEY] || {}),
-    [videoId]: { notePath, corpusTableInitialized: true },
+    [videoId]: { notePath, corpusTableInitialized: true, corpusTableFormat: "wide-v2" },
   };
   await chrome.storage.local.set({ [CORPUS_EXPORTS_KEY]: next, [CORPUS_VIDEO_NOTES_KEY]: mappings });
   return { success: true, alreadyRecorded: exports.some((item) => item?.entryKey === entryKey) };

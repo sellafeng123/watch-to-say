@@ -183,7 +183,7 @@ test("creates a stable safe video-note path and encoded append URI", () => {
   assert.equal(uri.includes("overwrite="), false);
 });
 
-test("renders the first exported entry as one row in the Corpus Palace table", () => {
+test("renders the first exported entry in a readable three-column Corpus Palace table", () => {
   const markdown = corpus.renderCorpusEntryMarkdown({
     topic: "Study [habits]",
     expression: "get into the zone",
@@ -206,16 +206,18 @@ test("renders the first exported entry as one row in the Corpus Palace table", (
     personalNote: "说出自己的例子。",
   });
 
-  assert.match(markdown, /^## 语料总表/m);
+  assert.match(markdown, /^## 语料总表（宽表）$/m);
   assert.match(
     markdown,
-    /^\| 主题 \| 表达 \| 类型 \| AI 语境释义 \| 原句语境 \| 口语频率 \| 搭配\/句型 \| 同义改写\/扩展 \| 时间素材 \| 学习状态 \| 我的练习 \|$/m,
+    /^\| 重点表达 \| 原句语境 \| 学习笔记 \|$/m,
   );
   assert.match(markdown, /\[1:05\]\(https:\/\/www\.youtube\.com\/watch\?v=abc123&t=65s\)/);
-  assert.match(markdown, /AI 语境释义/);
+  assert.match(markdown, /\*\*get into the zone\*\*<br>类型：词伙<br>主题：Study \\\[habits\\\]<br>频率：常用<br>状态：重点/);
+  assert.match(markdown, /\*\*AI 语境释义\*\*：进入高度专注的状态；EN: to become fully focused；词性: verb phrase；日常学习和工作场景常用/);
+  assert.match(markdown, /\*\*搭配\/句型\*\*：句型: I get into the zone when \.\.\./);
+  assert.match(markdown, /\*\*同义改写\/扩展\*\*：—/);
   assert.ok(markdown.includes("I &lt;focus&gt; after \\[coffee\\]."));
-  assert.match(markdown, /说出自己的例子。/);
-  assert.match(markdown, /重点/);
+  assert.match(markdown, /\*\*我的练习\*\*：说出自己的例子。/);
   assert.doesNotMatch(markdown, /^### Context$/m);
   assert.doesNotMatch(markdown, /^### Collocations$/m);
 });
@@ -239,8 +241,9 @@ test("renders later entries as table rows without duplicating the table header",
     personalNote: "周末可以用。",
   }, { includeTableHeader: false });
 
-  assert.doesNotMatch(markdown, /^## 语料总表$/m);
-  assert.doesNotMatch(markdown, /^\| 主题 \| 表达 /m);
-  assert.match(markdown, /^\| 学习与工作 \| run errands \| 词伙 \|/m);
-  assert.match(markdown, /run some errands — 处理一些杂事/);
+  assert.doesNotMatch(markdown, /^## 语料总表（宽表）$/m);
+  assert.doesNotMatch(markdown, /^\| 重点表达 \| 原句语境 \| 学习笔记 \|$/m);
+  assert.match(markdown, /^\| \*\*run errands\*\*<br>类型：词伙<br>主题：学习与工作<br>频率：场景常用<br>状态：重点 \|/m);
+  assert.match(markdown, /\*\*搭配\/句型\*\*：run some errands — 处理一些杂事；句型: I need to run errands before \.\.\./);
+  assert.match(markdown, /\*\*同义改写\/扩展\*\*：同义: take care of errands — 更正式/);
 });

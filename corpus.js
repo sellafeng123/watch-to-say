@@ -232,26 +232,28 @@ const YTD_CORPUS = (() => {
         `扩展: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
       ),
     ].filter(Boolean).join("；");
-    const row = [
-      escapeTableCell(entry.topic) || "未分类",
-      escapeTableCell(entry.expression),
-      kindLabel(entry.kind),
-      escapeTableCell(aiGloss),
-      escapeTableCell(entry.context),
-      spokenFrequencyLabel(entry.spokenFrequency),
-      escapeTableCell(collocationsAndFrame),
-      escapeTableCell(extensions),
-      source,
-      escapeTableCell(entry.learningStatus) || "重点",
-      escapeTableCell(entry.personalNote),
-    ];
+    const focus = [
+      `**${escapeTableCell(entry.expression)}**`,
+      `类型：${kindLabel(entry.kind)}`,
+      `主题：${escapeTableCell(entry.topic) || "未分类"}`,
+      `频率：${spokenFrequencyLabel(entry.spokenFrequency)}`,
+      `状态：${escapeTableCell(entry.learningStatus) || "重点"}`,
+    ].join("<br>");
+    const context = [source, escapeTableCell(entry.context)].filter(Boolean).join("<br>");
+    const studyNotes = [
+      `**AI 语境释义**：${escapeTableCell(aiGloss) || "—"}`,
+      `**搭配/句型**：${escapeTableCell(collocationsAndFrame) || "—"}`,
+      `**同义改写/扩展**：${escapeTableCell(extensions) || "—"}`,
+      `**我的练习**：${escapeTableCell(entry.personalNote) || "—"}`,
+    ].join("<br><br>");
+    const row = [focus, context, studyNotes];
     const tableRow = `| ${row.join(" | ")} |`;
     if (!includeTableHeader) return `${tableRow}\n`;
     return [
-      "## 语料总表",
+      "## 语料总表（宽表）",
       "",
-      "| 主题 | 表达 | 类型 | AI 语境释义 | 原句语境 | 口语频率 | 搭配/句型 | 同义改写/扩展 | 时间素材 | 学习状态 | 我的练习 |",
-      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+      "| 重点表达 | 原句语境 | 学习笔记 |",
+      "| --- | --- | --- |",
       tableRow,
       "",
     ].join("\n");

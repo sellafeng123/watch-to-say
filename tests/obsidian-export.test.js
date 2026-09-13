@@ -64,6 +64,7 @@ test("keeps one stable Obsidian note path per video and records handoff without 
   assert.deepEqual(JSON.parse(JSON.stringify(storage.ytd_corpus_video_notes.abc123)), {
     notePath: destination.notePath,
     corpusTableInitialized: true,
+    corpusTableFormat: "wide-v2",
   });
   assert.equal(storage.ytd_corpus_exports[0].status, "handed_off");
   assert.equal(storage.ytd_corpus_exports[0].savedToObsidian, undefined);
@@ -85,5 +86,25 @@ test("adds a first Corpus Palace table after a legacy hierarchical video note", 
     new Date("2026-09-14T00:00:00Z"),
   );
   assert.equal(destination.notePath, "YouTube English/2026-09-12 - Existing Video.md");
+  assert.equal(destination.includeTableHeader, true);
+});
+
+test("starts a wide table after a previously exported narrow table instead of appending a mismatched row", async () => {
+  const { helpers } = loadExportHelpers({
+    ytd_settings: { obsidianVault: "English Vault" },
+    ytd_corpus_video_notes: {
+      abc123: {
+        notePath: "YouTube English/2026-09-13 - Existing Video.md",
+        corpusTableInitialized: true,
+      },
+    },
+  });
+
+  const destination = await helpers.resolveVideoNoteDestination(
+    "abc123",
+    "Existing Video",
+    new Date("2026-09-14T00:00:00Z"),
+  );
+  assert.equal(destination.notePath, "YouTube English/2026-09-13 - Existing Video.md");
   assert.equal(destination.includeTableHeader, true);
 });
