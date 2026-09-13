@@ -30,7 +30,7 @@ This personal remix adds a context-first English-speaking workflow without turni
 1. Select English text in the YouTube player captions or the side-panel Transcript.
 2. Request an **AI 语境释义**. DeepSeek uses the surrounding subtitle context to provide the in-sentence English and Chinese meaning, part of speech, collocations, a sentence frame, spoken-frequency label, paraphrases, and related expressions.
 3. Edit the topic, expression type, spoken frequency, and your own practice note. Paraphrases and related expressions are optional, so they are never silently added.
-4. Use **Append to Obsidian** to open Obsidian on your device. Entries from the same video share one Markdown note and keep their timestamped context.
+4. Use **Append to Obsidian** to open Obsidian on your device. Entries from the same video share one Markdown note and append as rows in one Corpus Palace table, keeping their timestamped context.
 
 This is AI-generated learner guidance, not a quotation from a dictionary. It works best with captions and a configured DeepSeek API key.
 

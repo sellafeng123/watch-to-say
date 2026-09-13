@@ -215,7 +215,9 @@ function showPlayerCorpusEntryPreview(root, entry, destination) {
   message.textContent = "学习条目已整理完成。";
   const preview = document.createElement("div");
   preview.className = "export-preview";
-  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry, {
+    includeTableHeader: destination?.includeTableHeader !== false,
+  });
   preview.textContent = markdown;
   root.append(message, preview);
   if (!destination?.vault || !destination?.notePath) {

@@ -181,54 +181,78 @@ const YTD_CORPUS = (() => {
       .replace(/([\\`*_{}\[\]()#+!|])/g, "\\$1");
   }
 
-  function renderExtensionList(items) {
-    if (!items.length) return "- None selected";
-    return items
-      .map((item) => `- ${escapeMarkdownText(item.expression)} — ${escapeMarkdownText(item.differenceZh)}`)
-      .join("\n");
+  function escapeTableCell(value) {
+    return escapeMarkdownText(normalizeWhitespace(value, 4000));
   }
 
-  function renderCorpusEntryMarkdown(entry) {
+  function joinTableValues(items, formatter) {
+    if (!Array.isArray(items) || !items.length) return "";
+    return items.map(formatter).filter(Boolean).join("；");
+  }
+
+  function spokenFrequencyLabel(value) {
+    return {
+      high: "高频",
+      common: "常用",
+      situational: "场景常用",
+      low_formal: "低频或偏书面",
+    }[value] || "场景常用";
+  }
+
+  function kindLabel(value) {
+    return {
+      word: "单词",
+      phrase: "词伙",
+      sentence_frame: "句型",
+    }[value] || "词伙";
+  }
+
+  function renderCorpusEntryMarkdown(entry, { includeTableHeader = true } = {}) {
     if (!entry) return "";
     const source = entry.timestampedUrl
       ? `[${escapeMarkdownText(entry.timestamp)}](${entry.timestampedUrl})`
       : escapeMarkdownText(entry.timestamp);
-    const collocations = entry.collocations?.length
-      ? entry.collocations
-          .map((item) => `- ${escapeMarkdownText(item.text)} — ${escapeMarkdownText(item.noteZh)}`)
-          .join("\n")
-      : "- None";
+    const aiGloss = [
+      entry.contextMeaningZh,
+      entry.contextMeaningEn ? `EN: ${entry.contextMeaningEn}` : "",
+      entry.partOfSpeech ? `词性: ${entry.partOfSpeech}` : "",
+      entry.frequencyReasonZh,
+    ].filter(Boolean).join("；");
+    const collocationsAndFrame = [
+      joinTableValues(entry.collocations, (item) =>
+        `${item.text}${item.noteZh ? ` — ${item.noteZh}` : ""}`,
+      ),
+      entry.sentenceFrame ? `句型: ${entry.sentenceFrame}` : "",
+    ].filter(Boolean).join("；");
+    const extensions = [
+      joinTableValues(entry.paraphrases, (item) =>
+        `同义: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      ),
+      joinTableValues(entry.relatedExtensions, (item) =>
+        `扩展: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      ),
+    ].filter(Boolean).join("；");
+    const row = [
+      escapeTableCell(entry.topic) || "未分类",
+      escapeTableCell(entry.expression),
+      kindLabel(entry.kind),
+      escapeTableCell(aiGloss),
+      escapeTableCell(entry.context),
+      spokenFrequencyLabel(entry.spokenFrequency),
+      escapeTableCell(collocationsAndFrame),
+      escapeTableCell(extensions),
+      source,
+      escapeTableCell(entry.learningStatus) || "重点",
+      escapeTableCell(entry.personalNote),
+    ];
+    const tableRow = `| ${row.join(" | ")} |`;
+    if (!includeTableHeader) return `${tableRow}\n`;
     return [
-      `## ${escapeMarkdownText(entry.timestamp)} · ${escapeMarkdownText(entry.expression)}`,
+      "## 语料总表",
       "",
-      `- Topic: ${escapeMarkdownText(entry.topic) || "Unsorted"}`,
-      `- Type: ${escapeMarkdownText(entry.kind)}`,
-      `- Spoken frequency: ${escapeMarkdownText(entry.spokenFrequency)}`,
-      `- Source: ${source} · ${escapeMarkdownText(entry.videoTitle)} · ${escapeMarkdownText(entry.channelName)}`,
-      "",
-      "### Context",
-      escapeMarkdownText(entry.context),
-      "",
-      "### AI 语境释义",
-      `- Part of speech: ${escapeMarkdownText(entry.partOfSpeech)}`,
-      `- EN: ${escapeMarkdownText(entry.contextMeaningEn)}`,
-      `- 中文: ${escapeMarkdownText(entry.contextMeaningZh)}`,
-      `- Frequency note: ${escapeMarkdownText(entry.frequencyReasonZh)}`,
-      "",
-      "### Collocations",
-      collocations,
-      "",
-      "### Sentence frame",
-      escapeMarkdownText(entry.sentenceFrame),
-      "",
-      "### Paraphrases",
-      renderExtensionList(entry.paraphrases || []),
-      "",
-      "### Related extensions",
-      renderExtensionList(entry.relatedExtensions || []),
-      "",
-      "### My practice",
-      escapeMarkdownText(entry.personalNote),
+      "| 主题 | 表达 | 类型 | AI 语境释义 | 原句语境 | 口语频率 | 搭配/句型 | 同义改写/扩展 | 时间素材 | 学习状态 | 我的练习 |",
+      "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+      tableRow,
       "",
     ].join("\n");
   }

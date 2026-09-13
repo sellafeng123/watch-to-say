@@ -1934,7 +1934,9 @@ function showCorpusEntryPreview(root, entry, destination) {
   message.textContent = "学习条目已整理完成。";
   const preview = document.createElement("pre");
   preview.className = "explain-text";
-  preview.textContent = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  preview.textContent = YTD_CORPUS.renderCorpusEntryMarkdown(entry, {
+    includeTableHeader: destination?.includeTableHeader !== false,
+  });
   root.append(message, preview);
   if (!destination?.vault || !destination?.notePath) {
     const settingsButton = document.createElement("button");
@@ -1945,7 +1947,9 @@ function showCorpusEntryPreview(root, entry, destination) {
     root.append(settingsButton);
     return;
   }
-  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry, {
+    includeTableHeader: destination?.includeTableHeader !== false,
+  });
   const exportLink = document.createElement("a");
   exportLink.className = "enhance-btn";
   exportLink.textContent = "一键追加到 Obsidian";

@@ -183,7 +183,7 @@ test("creates a stable safe video-note path and encoded append URI", () => {
   assert.equal(uri.includes("overwrite="), false);
 });
 
-test("renders export markdown as literal learner content with source context", () => {
+test("renders the first exported entry as one row in the Corpus Palace table", () => {
   const markdown = corpus.renderCorpusEntryMarkdown({
     topic: "Study [habits]",
     expression: "get into the zone",
@@ -206,9 +206,41 @@ test("renders export markdown as literal learner content with source context", (
     personalNote: "说出自己的例子。",
   });
 
-  assert.match(markdown, /^## 1:05 · get into the zone/m);
+  assert.match(markdown, /^## 语料总表/m);
+  assert.match(
+    markdown,
+    /^\| 主题 \| 表达 \| 类型 \| AI 语境释义 \| 原句语境 \| 口语频率 \| 搭配\/句型 \| 同义改写\/扩展 \| 时间素材 \| 学习状态 \| 我的练习 \|$/m,
+  );
   assert.match(markdown, /\[1:05\]\(https:\/\/www\.youtube\.com\/watch\?v=abc123&t=65s\)/);
   assert.match(markdown, /AI 语境释义/);
   assert.ok(markdown.includes("I &lt;focus&gt; after \\[coffee\\]."));
   assert.match(markdown, /说出自己的例子。/);
+  assert.match(markdown, /重点/);
+  assert.doesNotMatch(markdown, /^### Context$/m);
+  assert.doesNotMatch(markdown, /^### Collocations$/m);
+});
+
+test("renders later entries as table rows without duplicating the table header", () => {
+  const markdown = corpus.renderCorpusEntryMarkdown({
+    topic: "学习与工作",
+    expression: "run errands",
+    kind: "phrase",
+    spokenFrequency: "situational",
+    timestamp: "4:32",
+    timestampedUrl: "https://www.youtube.com/watch?v=abc123&t=272s",
+    context: "I need to run errands after work.",
+    partOfSpeech: "verb phrase",
+    contextMeaningEn: "to do small necessary tasks outside home",
+    contextMeaningZh: "出门处理杂事",
+    collocations: [{ text: "run some errands", noteZh: "处理一些杂事" }],
+    sentenceFrame: "I need to run errands before ...",
+    paraphrases: [{ expression: "take care of errands", differenceZh: "更正式" }],
+    relatedExtensions: [],
+    personalNote: "周末可以用。",
+  }, { includeTableHeader: false });
+
+  assert.doesNotMatch(markdown, /^## 语料总表$/m);
+  assert.doesNotMatch(markdown, /^\| 主题 \| 表达 /m);
+  assert.match(markdown, /^\| 学习与工作 \| run errands \| 词伙 \|/m);
+  assert.match(markdown, /run some errands — 处理一些杂事/);
 });

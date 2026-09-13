@@ -58,9 +58,12 @@ test("keeps one stable Obsidian note path per video and records handoff without 
     vault: "English Vault",
     folder: "YouTube English",
     notePath: "YouTube English/2026-09-13 - Study Focus.md",
+    includeTableHeader: true,
   });
   await helpers.recordCorpusExport({ entryKey: "abc123:65:get into the zone", videoId: "abc123", notePath: destination.notePath });
   assert.equal(storage.ytd_corpus_video_notes.abc123, destination.notePath);
   assert.equal(storage.ytd_corpus_exports[0].status, "handed_off");
   assert.equal(storage.ytd_corpus_exports[0].savedToObsidian, undefined);
+  const laterDestination = await helpers.resolveVideoNoteDestination("abc123", "Study: Focus", new Date("2026-09-14T00:00:00Z"));
+  assert.equal(laterDestination.includeTableHeader, false);
 });

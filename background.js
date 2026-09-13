@@ -1309,7 +1309,7 @@ async function resolveVideoNoteDestination(videoId, videoTitle, now) {
     videoTitle,
     firstExportedAt: now,
   });
-  return { vault, folder, notePath };
+  return { vault, folder, notePath, includeTableHeader: !existingPath };
 }
 
 async function recordCorpusExport(record) {
