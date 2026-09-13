@@ -12,6 +12,8 @@ var YTD_SETTINGS = (() => {
     aiBaseUrl: "https://api.deepseek.com",
     aiModel: "deepseek-v4-flash",
     supadataApiKey: "",
+    obsidianVault: "",
+    obsidianFolder: "YouTube English",
   });
 
   function isLegacyCustom(input) {
@@ -32,6 +34,12 @@ var YTD_SETTINGS = (() => {
         typeof input.supadataApiKey === "string"
           ? input.supadataApiKey.trim()
           : "",
+      obsidianVault:
+        typeof input.obsidianVault === "string" ? input.obsidianVault.trim() : "",
+      obsidianFolder:
+        typeof input.obsidianFolder === "string" && input.obsidianFolder.trim()
+          ? input.obsidianFolder.trim()
+          : DEFAULTS.obsidianFolder,
     };
   }
 

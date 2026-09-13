@@ -321,6 +321,7 @@ test("published prompt files contain runtime sections", () => {
   const expectedSections = {
     "prompts/analysis.md": ["System prompt", "User prompt"],
     "prompts/explain.md": ["System prompt", "User prompt"],
+    "prompts/contextual-gloss.md": ["System prompt", "User prompt"],
     "prompts/note-cleanup.md": ["System prompt", "User prompt"],
     "prompts/translation.md": [
       "Shared base rules",
@@ -335,4 +336,28 @@ test("published prompt files contain runtime sections", () => {
       assert.match(markdown, new RegExp(`^## ${section}$`, "m"));
     }
   }
+});
+
+test("Corpus Palace runtime files load in the required order and do not overclaim exports", () => {
+  const manifest = JSON.parse(read("manifest.json"));
+  assert.deepEqual(
+    manifest.content_scripts[0].js,
+    ["corpus.js", "corpus-ui.js", "content.js"],
+  );
+  assert.match(read("background.js"), /importScripts\("settings\.js", "corpus\.js"\)/);
+  assert.match(
+    read("sidepanel.html"),
+    /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
+  );
+
+  const learnerRuntime = [
+    read("background.js"),
+    read("content.js"),
+    read("sidepanel.js"),
+    read("corpus-ui.js"),
+    read("prompts/contextual-gloss.md"),
+  ].join("\n");
+  assert.match(learnerRuntime, /AI 语境释义/);
+  assert.doesNotMatch(learnerRuntime, /Oxford definition/i);
+  assert.doesNotMatch(learnerRuntime, /saved to Obsidian/i);
 });

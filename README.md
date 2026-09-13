@@ -23,6 +23,21 @@ YouTube Digest is a bring-your-own-key project installed locally from GitHub. It
 - Explain selected transcript text or save it directly as a timestamped note.
 - Keep your transcript position across navigation, with the panel closing automatically outside YouTube video pages.
 
+## Corpus Palace learning flow
+
+This personal remix adds a context-first English-speaking workflow without turning every selected sentence into a separate note.
+
+1. Select English text in the YouTube player captions or the side-panel Transcript.
+2. Request an **AI 语境释义**. DeepSeek uses the surrounding subtitle context to provide the in-sentence English and Chinese meaning, part of speech, collocations, a sentence frame, spoken-frequency label, paraphrases, and related expressions.
+3. Edit the topic, expression type, spoken frequency, and your own practice note. Paraphrases and related expressions are optional, so they are never silently added.
+4. Use **Append to Obsidian** to open Obsidian on your device. Entries from the same video share one Markdown note and keep their timestamped context.
+
+This is AI-generated learner guidance, not a quotation from a dictionary. It works best with captions and a configured DeepSeek API key.
+
+### Set up Obsidian export
+
+In **Settings**, fill in the exact name of the local Obsidian Vault and an optional folder (the default is `YouTube English`). The extension prepares an `obsidian://new` append request only after you click the export button. Obsidian, not the extension, performs the local file operation, so confirm the result in Obsidian after it opens.
+
 ## Install with your coding agent
 
 You do not need to understand the code or use the command line. Send this message to your coding agent:

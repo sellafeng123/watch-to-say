@@ -1814,7 +1814,7 @@ function setupExplainFeature() {
       if (!selectedText) return;
 
       tooltip.style.display = "none";
-      await showExplanation(selectedText);
+      await showExplanation(selectedText, selectedTimestamp);
     });
 
   // Save the exact selected words at the first selected transcript row. This
@@ -1866,7 +1866,7 @@ function setupExplainFeature() {
 /**
  * Shows the explanation modal and fetches it from the configured AI provider.
  */
-async function showExplanation(selectedText) {
+async function showExplanation(selectedText, selectedTimestamp) {
   // Create modal
   const modal = document.createElement("div");
   modal.id = "explainModal";
@@ -1874,14 +1874,14 @@ async function showExplanation(selectedText) {
   modal.innerHTML = `
     <div class="explain-modal">
       <div class="explain-modal-header">
-        <div class="explain-modal-title">Explain</div>
+        <div class="explain-modal-title">AI 语境双解</div>
         <button class="explain-modal-close" id="closeExplain">Close</button>
       </div>
       <div class="explain-selected-text">"${escapeHtml(selectedText.substring(0, 200))}${selectedText.length > 200 ? "..." : ""}"</div>
       <div class="explain-modal-content" id="explanationContent">
         <div class="explain-loading">
           <div class="loading-bar"></div>
-          <span>Analyzing...</span>
+          <span>正在生成 AI 语境释义...</span>
         </div>
       </div>
     </div>
@@ -1897,28 +1897,71 @@ async function showExplanation(selectedText) {
     if (e.target === modal) modal.remove();
   });
 
-  // Get some context around the selection from the transcript
-  const transcriptContext = getTranscriptContext(selectedText);
-
-  // Fetch explanation
   try {
     const result = await chrome.runtime.sendMessage({
-      action: "explainSelection",
-      selectedText: selectedText,
-      transcriptContext: transcriptContext,
-      videoTitle: currentVideoTitle,
+      action: "getContextualGloss",
+      selectionRequest: {
+        source: "sidepanel-transcript",
+        selectedText,
+        videoId: currentVideoId,
+        timestampSeconds: selectedTimestamp,
+        videoTitle: currentVideoTitle,
+        channelName: currentChannelName,
+      },
     });
 
     const contentDiv = document.getElementById("explanationContent");
     if (result.success) {
-      contentDiv.innerHTML = `<div class="explain-text">${escapeHtml(result.explanation).replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</div>`;
+      YTD_CORPUS_UI.mountGlossCard({
+        root: contentDiv,
+        gloss: result.gloss,
+        selection: result.selection,
+        onSave: (entry) => showCorpusEntryPreview(contentDiv, entry, result.destination),
+      });
     } else {
-      contentDiv.innerHTML = `<div class="explain-error">Failed to get explanation: ${escapeHtml(result.error)}</div>`;
+      contentDiv.innerHTML = `<div class="explain-error">Failed to get explanation: ${escapeHtml(result.message || result.error)}</div>`;
     }
   } catch (error) {
     const contentDiv = document.getElementById("explanationContent");
     contentDiv.innerHTML = `<div class="explain-error">Error: ${escapeHtml(error.message)}</div>`;
   }
+}
+
+function showCorpusEntryPreview(root, entry, destination) {
+  root.replaceChildren();
+  const message = document.createElement("div");
+  message.className = "explain-text";
+  message.textContent = "学习条目已整理完成。";
+  const preview = document.createElement("pre");
+  preview.className = "explain-text";
+  preview.textContent = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  root.append(message, preview);
+  if (!destination?.vault || !destination?.notePath) {
+    const settingsButton = document.createElement("button");
+    settingsButton.className = "enhance-btn";
+    settingsButton.type = "button";
+    settingsButton.textContent = "先配置 Obsidian Vault";
+    settingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
+    root.append(settingsButton);
+    return;
+  }
+  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  const exportLink = document.createElement("a");
+  exportLink.className = "enhance-btn";
+  exportLink.textContent = "一键追加到 Obsidian";
+  exportLink.href = YTD_CORPUS.buildObsidianAppendUri({
+    vault: destination.vault,
+    file: destination.notePath,
+    content: markdown,
+  });
+  exportLink.addEventListener("click", () => {
+    const entryKey = `${entry.videoId}:${entry.timestampSeconds}:${entry.expression.toLocaleLowerCase()}`;
+    chrome.runtime.sendMessage({
+      action: "recordCorpusExport",
+      exportRecord: { entryKey, videoId: entry.videoId, notePath: destination.notePath },
+    }).catch(() => {});
+  });
+  root.append(exportLink);
 }
 
 /**

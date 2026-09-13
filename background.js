@@ -19,6 +19,8 @@ const DEBUG = false;
 const AI_PROVIDER_IDLE_TIMEOUT_MS = 50_000;
 const AI_PROVIDER_HARD_TIMEOUT_MS = 120_000;
 const AI_PROVIDER_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const CORPUS_VIDEO_NOTES_KEY = "ytd_corpus_video_notes";
+const CORPUS_EXPORTS_KEY = "ytd_corpus_exports";
 const debugLog = (...args) => {
   if (DEBUG) console.log(...args);
 };
@@ -386,6 +388,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     handleContextualGloss(message.selectionRequest)
       .then(sendResponse)
       .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "getCorpusSettings") {
+    getCorpusSettings().then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "recordCorpusExport") {
+    recordCorpusExport(message.exportRecord).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
@@ -1254,7 +1266,12 @@ async function handleContextualGloss(selectionRequest) {
         message: "The AI response was incomplete. Try again.",
       };
     }
-    return { success: true, selection: selectionContext, gloss };
+    const destination = await resolveVideoNoteDestination(
+      selectionContext.videoId,
+      selectionContext.videoTitle || "Untitled Video",
+      new Date(),
+    );
+    return { success: true, selection: selectionContext, gloss, destination };
   } catch (error) {
     if (error.status === 429) {
       return {
@@ -1269,6 +1286,46 @@ async function handleContextualGloss(selectionRequest) {
       message: "Could not create an AI contextual gloss.",
     };
   }
+}
+
+async function getCorpusSettings() {
+  const settings = await getSettings();
+  return {
+    success: true,
+    vault: settings.obsidianVault || "",
+    folder: settings.obsidianFolder || "YouTube English",
+  };
+}
+
+async function resolveVideoNoteDestination(videoId, videoTitle, now) {
+  const settings = await getSettings();
+  const vault = settings.obsidianVault || "";
+  const folder = settings.obsidianFolder || "YouTube English";
+  const stored = await chrome.storage.local.get(CORPUS_VIDEO_NOTES_KEY);
+  const mappings = stored[CORPUS_VIDEO_NOTES_KEY] || {};
+  const existingPath = mappings[videoId];
+  const notePath = existingPath || YTD_CORPUS.buildVideoNotePath({
+    folder,
+    videoTitle,
+    firstExportedAt: now,
+  });
+  return { vault, folder, notePath };
+}
+
+async function recordCorpusExport(record) {
+  const entryKey = typeof record?.entryKey === "string" ? record.entryKey.slice(0, 800) : "";
+  const videoId = typeof record?.videoId === "string" ? record.videoId.slice(0, 100) : "";
+  const notePath = typeof record?.notePath === "string" ? record.notePath.slice(0, 500) : "";
+  if (!entryKey || !videoId || !notePath) return { success: false, error: "INVALID_EXPORT_RECORD" };
+  const stored = await chrome.storage.local.get([CORPUS_EXPORTS_KEY, CORPUS_VIDEO_NOTES_KEY]);
+  const exports = Array.isArray(stored[CORPUS_EXPORTS_KEY]) ? stored[CORPUS_EXPORTS_KEY] : [];
+  const next = [
+    { entryKey, videoId, notePath, status: "handed_off", createdAt: Date.now() },
+    ...exports.filter((item) => item?.entryKey !== entryKey),
+  ].slice(0, 300);
+  const mappings = { ...(stored[CORPUS_VIDEO_NOTES_KEY] || {}), [videoId]: notePath };
+  await chrome.storage.local.set({ [CORPUS_EXPORTS_KEY]: next, [CORPUS_VIDEO_NOTES_KEY]: mappings });
+  return { success: true, alreadyRecorded: exports.some((item) => item?.entryKey === entryKey) };
 }
 
 /**
@@ -1882,4 +1939,7 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   resolveSelectionContext,
   validateContextualGlossResponse,
   handleContextualGloss,
+  getCorpusSettings,
+  recordCorpusExport,
+  resolveVideoNoteDestination,
 };

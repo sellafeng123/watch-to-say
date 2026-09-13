@@ -1499,3 +1499,143 @@ body {
   color: var(--accent);
   background: var(--accent-dim);
 }
+
+/* Corpus Palace: AI contextual bilingual gloss and learner-controlled export. */
+.corpus-gloss-card,
+.corpus-editor {
+  display: grid;
+  gap: 12px;
+}
+
+.corpus-gloss-card {
+  padding: 4px 0;
+}
+
+.corpus-gloss-label {
+  margin: 0;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.corpus-gloss-expression,
+.corpus-editor-title,
+.corpus-gloss-heading {
+  margin: 0;
+}
+
+.corpus-gloss-expression,
+.corpus-editor-title {
+  font-family: var(--font-reading);
+  font-size: 20px;
+  color: var(--text);
+}
+
+.corpus-gloss-heading {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.corpus-gloss-copy {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-family: var(--font-reading);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.corpus-gloss-extensions {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  padding: 8px 10px;
+}
+
+.corpus-gloss-summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.corpus-gloss-list {
+  display: grid;
+  gap: 6px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.corpus-primary-button {
+  justify-self: start;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
+  background: var(--accent);
+  color: white;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.corpus-primary-button:hover {
+  background: var(--accent-hover);
+}
+
+.corpus-primary-button:focus-visible {
+  outline: 3px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
+.corpus-editor-field {
+  display: grid;
+  gap: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.corpus-editor-input,
+.corpus-editor-select,
+.corpus-editor-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.corpus-editor-input:focus,
+.corpus-editor-select:focus,
+.corpus-editor-textarea:focus {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-dim);
+}
+
+.corpus-editor-extensions {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 9px;
+}
+
+.corpus-editor-extensions legend {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.corpus-editor-check {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+}

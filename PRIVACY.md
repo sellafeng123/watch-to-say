@@ -15,6 +15,8 @@ Depending on the feature you use, YouTube Digest handles:
 - transcript context around a timestamped note;
 - content you ask to translate;
 - notes you save;
+- learner entries you prepare for an Obsidian Markdown note, including selected
+  expressions, nearby subtitle context, AI contextual glosses, and your edits;
 - Supadata and DeepSeek configuration, including API keys; and
 - cached transcript, digest, and translation results.
 
@@ -38,6 +40,16 @@ The endpoint and `deepseek-v4-flash` model are fixed in the published Settings p
 
 Requests go directly from the extension to Supadata or DeepSeek. They are authenticated with the keys you supply. YouTube Digest's developer does not proxy or receive these requests.
 
+### Obsidian
+
+When you explicitly choose **Append to Obsidian**, the extension constructs an
+`obsidian://new` URL containing the selected Markdown entry, the Vault name,
+and the chosen per-video note path. Your operating system hands that URL to the
+local Obsidian application. The extension does not upload this Markdown to a
+developer server and does not claim that a local write succeeded; verify the
+result in Obsidian. Do not use this export with a Vault or device you do not
+control.
+
 Those services process data under their own terms, privacy policies, retention practices, and account settings. Do not send confidential, personal, or regulated content unless their terms and your obligations permit it.
 
 ## Local storage and retention
@@ -46,6 +58,8 @@ YouTube Digest uses Chrome's local extension storage, not a YouTube Digest cloud
 
 - Supadata and DeepSeek settings and API keys remain on the device in Chrome's extension storage.
 - Saved notes remain until you delete them or remove/clear the extension's data. The extension keeps up to 100 notes.
+- Obsidian export history stores only a local handoff record used to keep the
+  same video's note path stable. It does not contain the exported Markdown.
 - Recent transcript, digest, and per-segment translation cache entries are stored
   locally. The cache is limited to 20 videos, and entries older than 30 days are
   removed when the side panel opens.

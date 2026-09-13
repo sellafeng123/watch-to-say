@@ -30,6 +30,8 @@ let ytdDigestButton = null;
 let digestButtonObserver = null;
 let digestButtonReconcileTimer = null;
 let digestButtonResizeListenerAdded = false;
+let playerCaptionSelectionListenerAdded = false;
+let playerCorpusCardHost = null;
 
 // ============================================================
 // INITIALIZATION
@@ -54,6 +56,192 @@ function init() {
   // (YouTube is an SPA, so elements appear/disappear as you navigate)
   setupButtonObserver();
   setupDigestButtonResizeListener();
+  setupPlayerCaptionSelection();
+}
+
+// ============================================================
+// PLAYER CAPTION → CORPUS PALACE
+// ============================================================
+
+/**
+ * Adds a small learning-card entry point only for text selected inside the
+ * native YouTube player captions. This deliberately excludes page titles,
+ * comments, descriptions, and every other piece of text on the watch page.
+ */
+function setupPlayerCaptionSelection() {
+  if (playerCaptionSelectionListenerAdded) return;
+  document.addEventListener("mouseup", handlePlayerCaptionMouseUp);
+  document.addEventListener("mousedown", (event) => {
+    if (playerCorpusCardHost && !playerCorpusCardHost.contains(event.target)) {
+      dismissPlayerCorpusCard();
+    }
+  });
+  playerCaptionSelectionListenerAdded = true;
+}
+
+function getPlayerCaptionSelection() {
+  const selection = window.getSelection();
+  const captionContainer = document.querySelector(".ytp-caption-window-container");
+  if (!captionContainer || !selection || selection.rangeCount !== 1 || selection.isCollapsed) {
+    return null;
+  }
+
+  const range = selection.getRangeAt(0);
+  if (
+    !captionContainer.contains(range.startContainer) ||
+    !captionContainer.contains(range.endContainer)
+  ) {
+    return null;
+  }
+
+  const selectedText = selection.toString().replace(/\s+/g, " ").trim();
+  if (!selectedText) return null;
+  const rect = range.getBoundingClientRect();
+  return { selectedText, rect };
+}
+
+function getCurrentPlayerSelectionRequest(selectedText) {
+  const video = document.querySelector("video.html5-main-video");
+  const videoId = new URLSearchParams(window.location.search).get("v");
+  if (!videoId) return null;
+  const info = extractVideoInfo();
+  const timestampSeconds = Math.max(0, Math.floor(video?.currentTime || 0));
+  return {
+    source: "player-caption",
+    selectedText,
+    videoId,
+    timestampSeconds,
+    videoTitle: info.title,
+    channelName: info.channelName,
+  };
+}
+
+function handlePlayerCaptionMouseUp() {
+  const selected = getPlayerCaptionSelection();
+  if (!selected) return;
+  const selectionRequest = getCurrentPlayerSelectionRequest(selected.selectedText);
+  if (!selectionRequest) return;
+  showPlayerCaptionAction(selected.rect, selectionRequest);
+}
+
+function dismissPlayerCorpusCard() {
+  playerCorpusCardHost?.remove();
+  playerCorpusCardHost = null;
+}
+
+function createPlayerCorpusCardHost(rect) {
+  dismissPlayerCorpusCard();
+  document.getElementById("ytd-corpus-selection-root")?.remove();
+  const host = document.createElement("div");
+  host.id = "ytd-corpus-selection-root";
+  const left = Math.max(12, Math.min(window.innerWidth - 360, rect.left));
+  const top = Math.max(
+    12,
+    Math.min(Math.max(12, window.innerHeight - 560), rect.bottom + 10),
+  );
+  host.style.cssText = `position:fixed;z-index:2147483647;left:${left}px;top:${top}px;`;
+  const shadow = host.attachShadow({ mode: "open" });
+  const style = document.createElement("style");
+  style.textContent = `
+    :host { color: #1f2937; font-family: Roboto, Arial, sans-serif; }
+    .shell { width: min(340px, calc(100vw - 24px)); max-height: min(540px, calc(100vh - 24px)); overflow: auto; padding: 14px; border: 1px solid #d8c8f4; border-radius: 14px; background: #fff; box-shadow: 0 14px 38px rgba(34, 24, 54, .28); }
+    .prompt { margin: 0; font-size: 13px; color: #5d477c; }
+    button, .corpus-primary-button { border: 0; border-radius: 8px; padding: 9px 11px; background: #6f42c1; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
+    button:hover, .corpus-primary-button:hover { background: #5d32a7; }
+    .corpus-gloss-card, .corpus-editor { display: grid; gap: 10px; }
+    .corpus-gloss-card h2, .corpus-editor h2, .corpus-gloss-card h3 { margin: 0; }
+    .corpus-gloss-card h2 { font-size: 20px; }
+    .corpus-gloss-card h3, .corpus-editor-field, .corpus-editor-extensions { font-size: 13px; }
+    .corpus-gloss-section { margin: 0; }
+    .corpus-gloss-copy { margin: 3px 0 0; font-size: 13px; line-height: 1.45; }
+    .corpus-gloss-label { margin: 0; color: #6f42c1; font-weight: 700; font-size: 12px; }
+    .corpus-gloss-extensions { font-size: 13px; }
+    .corpus-gloss-list { margin: 6px 0 0; padding-left: 18px; }
+    .corpus-editor-field { display: grid; gap: 4px; font-weight: 600; }
+    .corpus-editor-input, .corpus-editor-select, .corpus-editor-textarea { box-sizing: border-box; width: 100%; border: 1px solid #cfc6da; border-radius: 7px; padding: 8px; font: inherit; font-size: 13px; }
+    .corpus-editor-extensions { display: grid; gap: 5px; border: 1px solid #e3dcef; border-radius: 7px; padding: 8px; }
+    .corpus-editor-check { font-size: 12px; line-height: 1.35; }
+    .export-preview { white-space: pre-wrap; max-height: 230px; overflow: auto; border-radius: 8px; padding: 9px; background: #f7f4fc; font-size: 11px; line-height: 1.4; }
+    .export-link { display: inline-block; margin-top: 10px; text-decoration: none; }
+    .error { color: #b42318; font-size: 13px; }
+  `;
+  const shell = document.createElement("div");
+  shell.className = "shell";
+  shadow.append(style, shell);
+  document.body.appendChild(host);
+  playerCorpusCardHost = host;
+  return shell;
+}
+
+function showPlayerCaptionAction(rect, selectionRequest) {
+  const shell = createPlayerCorpusCardHost(rect);
+  const message = document.createElement("p");
+  message.className = "prompt";
+  message.textContent = `已选：${selectionRequest.selectedText}`;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "生成 AI 语境双解";
+  button.addEventListener("mousedown", (event) => event.preventDefault());
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    button.textContent = "正在生成…";
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: "getContextualGloss",
+        selectionRequest,
+      });
+      if (!result?.success) throw new Error(result?.message || result?.error || "生成失败");
+      YTD_CORPUS_UI.mountGlossCard({
+        root: shell,
+        gloss: result.gloss,
+        selection: result.selection,
+        onSave: (entry) => showPlayerCorpusEntryPreview(shell, entry, result.destination),
+      });
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = "重新生成 AI 语境双解";
+      const errorText = document.createElement("p");
+      errorText.className = "error";
+      errorText.textContent = error.message || "生成失败";
+      shell.append(errorText);
+    }
+  });
+  shell.append(message, button);
+}
+
+function showPlayerCorpusEntryPreview(root, entry, destination) {
+  root.replaceChildren();
+  const message = document.createElement("p");
+  message.textContent = "学习条目已整理完成。";
+  const preview = document.createElement("div");
+  preview.className = "export-preview";
+  const markdown = YTD_CORPUS.renderCorpusEntryMarkdown(entry);
+  preview.textContent = markdown;
+  root.append(message, preview);
+  if (!destination?.vault || !destination?.notePath) {
+    const settingsButton = document.createElement("button");
+    settingsButton.type = "button";
+    settingsButton.textContent = "先配置 Obsidian Vault";
+    settingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
+    root.append(settingsButton);
+    return;
+  }
+  const exportLink = document.createElement("a");
+  exportLink.className = "export-link corpus-primary-button";
+  exportLink.textContent = "一键追加到 Obsidian";
+  exportLink.href = YTD_CORPUS.buildObsidianAppendUri({
+    vault: destination.vault,
+    file: destination.notePath,
+    content: markdown,
+  });
+  exportLink.addEventListener("click", () => {
+    const entryKey = `${entry.videoId}:${entry.timestampSeconds}:${entry.expression.toLocaleLowerCase()}`;
+    chrome.runtime.sendMessage({
+      action: "recordCorpusExport",
+      exportRecord: { entryKey, videoId: entry.videoId, notePath: destination.notePath },
+    }).catch(() => {});
+  });
+  root.append(exportLink);
 }
 
 /**
@@ -801,6 +989,7 @@ function escapeHtmlForContent(text) {
  * we clean up old markers and re-inject the button.
  */
 document.addEventListener("yt-navigate-finish", () => {
+  dismissPlayerCorpusCard();
   // Clean up old key moment markers when navigating to a new video
   const existingMarkers = document.querySelectorAll(".ytd-key-moment-markers");
   existingMarkers.forEach((m) => m.remove());

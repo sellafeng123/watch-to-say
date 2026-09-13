@@ -74,7 +74,7 @@ test("rebuilds contextual gloss from tolerant JSON without untrusted fields", ()
     { "expression": "zone out", "differenceZh": "指走神，语义相反" },
     { "expression": "knuckle down", "differenceZh": "指开始认真投入工作" }
   ],
-  "providerClaim": "Oxford"
+  "providerClaim": "named dictionary"
 }
 \`\`\``);
 

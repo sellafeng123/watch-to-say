@@ -11,6 +11,13 @@ const YTD_OPTIONS = (() => {
       lede:
         "Keys stay in this Chrome profile and are sent only to Supadata and DeepSeek. This open-source extension has no developer server or analytics.",
       transcriptProvider: "Transcript provider",
+      obsidianTitle: "Obsidian Corpus Palace",
+      obsidianVaultLabel: "Obsidian Vault name",
+      obsidianVaultPlaceholder: "Your vault name",
+      obsidianFolderLabel: "Folder inside the vault",
+      obsidianFolderPlaceholder: "YouTube English",
+      obsidianHelp:
+        "Learning entries are appended to one Markdown note per YouTube video through Obsidian on this device.",
       supadataApiKeyLabel: "Supadata API key",
       supadataHelp: "Used to fetch timestamped YouTube subtitles. ",
       supadataLink: "Create a Supadata account and key",
@@ -81,6 +88,13 @@ const YTD_OPTIONS = (() => {
       lede:
         "密钥仅保存在当前 Chrome 个人资料中，只会发送给 Supadata 和 DeepSeek。本开源扩展没有开发者服务器，也不使用分析服务。",
       transcriptProvider: "字幕服务",
+      obsidianTitle: "Obsidian 语料库宫殿",
+      obsidianVaultLabel: "Obsidian Vault 名称",
+      obsidianVaultPlaceholder: "填写你的 Vault 名称",
+      obsidianFolderLabel: "Vault 内的文件夹",
+      obsidianFolderPlaceholder: "YouTube English",
+      obsidianHelp:
+        "学习条目会通过本机 Obsidian 追加到同一支 YouTube 视频对应的一篇 Markdown 笔记中。",
       supadataApiKeyLabel: "Supadata API 密钥",
       supadataHelp: "用于获取带时间戳的 YouTube 字幕。",
       supadataLink: "创建 Supadata 账号并获取密钥",
@@ -350,6 +364,8 @@ const YTD_OPTIONS = (() => {
     const form = doc.getElementById("settingsForm");
     const aiApiKeyInput = doc.getElementById("aiApiKey");
     const supadataApiKeyInput = doc.getElementById("supadataApiKey");
+    const obsidianVaultInput = doc.getElementById("obsidianVault");
+    const obsidianFolderInput = doc.getElementById("obsidianFolder");
     const customizationPrompt = doc.getElementById("customizationPrompt");
     const copyCustomizationPromptBtn = doc.getElementById(
       "copyCustomizationPromptBtn",
@@ -403,6 +419,12 @@ const YTD_OPTIONS = (() => {
           translate(currentLanguage, element.dataset.i18nAriaLabel),
         );
       }
+      for (const element of doc.querySelectorAll("[data-i18n-placeholder]")) {
+        element.setAttribute(
+          "placeholder",
+          translate(currentLanguage, element.dataset.i18nPlaceholder),
+        );
+      }
 
       updateLocalizedPrompt(
         customizationPrompt,
@@ -422,6 +444,8 @@ const YTD_OPTIONS = (() => {
 
         aiApiKeyInput.value = settings.aiApiKey;
         supadataApiKeyInput.value = settings.supadataApiKey;
+        obsidianVaultInput.value = settings.obsidianVault;
+        obsidianFolderInput.value = settings.obsidianFolder;
         if (migration.migrated) {
           await storage.set({ [settingsApi.STORAGE_KEY]: settings });
           setStatus(saveStatus, "migrationWarning");
@@ -447,6 +471,8 @@ const YTD_OPTIONS = (() => {
       const settings = settingsApi.normalize({
         aiApiKey: aiApiKeyInput.value,
         supadataApiKey: supadataApiKeyInput.value,
+        obsidianVault: obsidianVaultInput.value,
+        obsidianFolder: obsidianFolderInput.value,
       });
 
       if (!settings.supadataApiKey) {
