@@ -61,9 +61,29 @@ test("keeps one stable Obsidian note path per video and records handoff without 
     includeTableHeader: true,
   });
   await helpers.recordCorpusExport({ entryKey: "abc123:65:get into the zone", videoId: "abc123", notePath: destination.notePath });
-  assert.equal(storage.ytd_corpus_video_notes.abc123, destination.notePath);
+  assert.deepEqual(JSON.parse(JSON.stringify(storage.ytd_corpus_video_notes.abc123)), {
+    notePath: destination.notePath,
+    corpusTableInitialized: true,
+  });
   assert.equal(storage.ytd_corpus_exports[0].status, "handed_off");
   assert.equal(storage.ytd_corpus_exports[0].savedToObsidian, undefined);
   const laterDestination = await helpers.resolveVideoNoteDestination("abc123", "Study: Focus", new Date("2026-09-14T00:00:00Z"));
   assert.equal(laterDestination.includeTableHeader, false);
+});
+
+test("adds a first Corpus Palace table after a legacy hierarchical video note", async () => {
+  const { helpers } = loadExportHelpers({
+    ytd_settings: { obsidianVault: "English Vault" },
+    ytd_corpus_video_notes: {
+      abc123: "YouTube English/2026-09-12 - Existing Video.md",
+    },
+  });
+
+  const destination = await helpers.resolveVideoNoteDestination(
+    "abc123",
+    "Existing Video",
+    new Date("2026-09-14T00:00:00Z"),
+  );
+  assert.equal(destination.notePath, "YouTube English/2026-09-12 - Existing Video.md");
+  assert.equal(destination.includeTableHeader, true);
 });

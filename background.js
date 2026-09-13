@@ -1303,13 +1303,23 @@ async function resolveVideoNoteDestination(videoId, videoTitle, now) {
   const folder = settings.obsidianFolder || "YouTube English";
   const stored = await chrome.storage.local.get(CORPUS_VIDEO_NOTES_KEY);
   const mappings = stored[CORPUS_VIDEO_NOTES_KEY] || {};
-  const existingPath = mappings[videoId];
+  const existingMapping = mappings[videoId];
+  const existingPath = typeof existingMapping === "string"
+    ? existingMapping
+    : existingMapping?.notePath;
   const notePath = existingPath || YTD_CORPUS.buildVideoNotePath({
     folder,
     videoTitle,
     firstExportedAt: now,
   });
-  return { vault, folder, notePath, includeTableHeader: !existingPath };
+  return {
+    vault,
+    folder,
+    notePath,
+    // String mappings were created by the old hierarchical exporter. Keep the
+    // old entries and append a fresh table rather than appending a bare row.
+    includeTableHeader: existingMapping?.corpusTableInitialized !== true,
+  };
 }
 
 async function recordCorpusExport(record) {
@@ -1323,7 +1333,10 @@ async function recordCorpusExport(record) {
     { entryKey, videoId, notePath, status: "handed_off", createdAt: Date.now() },
     ...exports.filter((item) => item?.entryKey !== entryKey),
   ].slice(0, 300);
-  const mappings = { ...(stored[CORPUS_VIDEO_NOTES_KEY] || {}), [videoId]: notePath };
+  const mappings = {
+    ...(stored[CORPUS_VIDEO_NOTES_KEY] || {}),
+    [videoId]: { notePath, corpusTableInitialized: true },
+  };
   await chrome.storage.local.set({ [CORPUS_EXPORTS_KEY]: next, [CORPUS_VIDEO_NOTES_KEY]: mappings });
   return { success: true, alreadyRecorded: exports.some((item) => item?.entryKey === entryKey) };
 }
