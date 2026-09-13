@@ -382,6 +382,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "getContextualGloss") {
+    handleContextualGloss(message.selectionRequest)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.action === "saveNote") {
     // Save a note at the current timestamp, or save exact selected transcript
     // text when the side panel supplies it.
@@ -1116,6 +1123,154 @@ async function handleGetVideoInfo(tabId) {
 // EXPLAIN SELECTION
 // ============================================================
 
+function resolveSelectionContext(selectionRequest, transcript) {
+  const selection = YTD_CORPUS.normalizeSelectionRequest(selectionRequest);
+  if (!selection || !Array.isArray(transcript) || transcript.length === 0) {
+    return null;
+  }
+  const rows = transcript
+    .map((entry) => ({
+      start: Math.max(0, Math.floor(Number(entry?.start) || 0)),
+      text: typeof entry?.text === "string" ? entry.text.replace(/\s+/g, " ").trim() : "",
+    }))
+    .filter((entry) => entry.text);
+  if (!rows.length) return null;
+
+  let targetIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+  rows.forEach((row, index) => {
+    const distance = Math.abs(row.start - selection.timestampSeconds);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      targetIndex = index;
+    }
+  });
+  const beforeText = rows
+    .slice(Math.max(0, targetIndex - 2), targetIndex)
+    .map((row) => row.text)
+    .join(" ");
+  const targetText = rows[targetIndex].text;
+  const afterText = rows
+    .slice(targetIndex + 1, targetIndex + 3)
+    .map((row) => row.text)
+    .join(" ");
+  const timestampedUrl = `${YTD_SETTINGS.canonicalYouTubeUrl(selection.videoId)}&t=${selection.timestampSeconds}s`;
+  return {
+    ...selection,
+    timestampedUrl,
+    targetText,
+    beforeText,
+    afterText,
+    context: [beforeText, targetText, afterText].filter(Boolean).join(" "),
+  };
+}
+
+function validateContextualGlossResponse(rawResponse, selectedText) {
+  const gloss = YTD_CORPUS.normalizeContextualGloss(rawResponse);
+  const normalizedSelected = typeof selectedText === "string"
+    ? selectedText.replace(/\s+/g, " ").trim().toLocaleLowerCase()
+    : "";
+  if (!gloss || !normalizedSelected) return null;
+  if (gloss.expression.toLocaleLowerCase() !== normalizedSelected) return null;
+  return gloss;
+}
+
+async function loadCorpusTranscript(videoId) {
+  const digestKey = `digest_${videoId}`;
+  const corpusKey = `ytd_corpus_transcript_${videoId}`;
+  const stored = await chrome.storage.local.get([digestKey, corpusKey]);
+  const digestTranscript = stored[digestKey]?.transcript;
+  if (Array.isArray(digestTranscript) && digestTranscript.length) return digestTranscript;
+  const cachedTranscript = stored[corpusKey]?.transcript;
+  if (Array.isArray(cachedTranscript) && cachedTranscript.length) return cachedTranscript;
+
+  const fetched = await handleFetchTranscript(videoId);
+  if (!fetched.success) return null;
+  await chrome.storage.local.set({
+    [corpusKey]: {
+      transcript: fetched.transcript,
+      savedAt: Date.now(),
+    },
+  });
+  return fetched.transcript;
+}
+
+async function handleContextualGloss(selectionRequest) {
+  const selection = YTD_CORPUS.normalizeSelectionRequest(selectionRequest);
+  if (!selection) {
+    return { success: false, error: "INVALID_SELECTION", message: "Select text from captions or Transcript." };
+  }
+  const settings = await getSettings();
+  if (!settings.aiApiKey) {
+    return {
+      success: false,
+      error: "NO_AI_KEY",
+      message: "DeepSeek API key not configured. Open YouTube Digest Settings.",
+    };
+  }
+
+  try {
+    const transcript = await loadCorpusTranscript(selection.videoId);
+    const selectionContext = resolveSelectionContext(selection, transcript);
+    if (!selectionContext) {
+      return {
+        success: false,
+        error: "NO_TRANSCRIPT_CONTEXT",
+        message: "A timestamped transcript is needed to explain this selection.",
+      };
+    }
+    const variables = {
+      selectedText: selectionContext.selectedText,
+      targetText: selectionContext.targetText,
+      beforeText: selectionContext.beforeText || "(none)",
+      afterText: selectionContext.afterText || "(none)",
+      videoTitle: selectionContext.videoTitle || "Unknown",
+      channelName: selectionContext.channelName || "Unknown",
+    };
+    const systemPrompt = await loadPromptSection(
+      "contextual-gloss.md",
+      "System prompt",
+      variables,
+    );
+    const userPrompt = await loadPromptSection(
+      "contextual-gloss.md",
+      "User prompt",
+      variables,
+    );
+    const { text } = await requestAiCompletion({
+      temperature: 0.2,
+      maxTokens: 1200,
+      responseFormat: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+    const gloss = validateContextualGlossResponse(text, selectionContext.selectedText);
+    if (!gloss) {
+      return {
+        success: false,
+        error: "INVALID_AI_RESPONSE",
+        message: "The AI response was incomplete. Try again.",
+      };
+    }
+    return { success: true, selection: selectionContext, gloss };
+  } catch (error) {
+    if (error.status === 429) {
+      return {
+        success: false,
+        error: "RATE_LIMITED",
+        message: "DeepSeek rate-limited this request. Try again shortly.",
+      };
+    }
+    return {
+      success: false,
+      error: error.message || "CONTEXTUAL_GLOSS_FAILED",
+      message: "Could not create an AI contextual gloss.",
+    };
+  }
+}
+
 /**
  * Explains selected text using DeepSeek.
  * Provides context, definitions, and clarification for complex terms.
@@ -1724,4 +1879,7 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   handleTranslateContent,
   closePanelForTab,
   updatePanelForTab,
+  resolveSelectionContext,
+  validateContextualGlossResponse,
+  handleContextualGloss,
 };
