@@ -1934,6 +1934,7 @@ function showCorpusEntryPreview(root, entry, destination) {
   message.textContent = "学习条目已整理完成。";
   root.append(message);
   YTD_CORPUS_UI.mountEntryPreview({ root, entry });
+  chrome.runtime.sendMessage({ action: "savePracticeHighlight", entry }).catch(() => {});
   if (!destination?.vault || !destination?.notePath) {
     const settingsButton = document.createElement("button");
     settingsButton.className = "enhance-btn";

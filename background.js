@@ -13,7 +13,7 @@
 
 // Import safe defaults and validation helpers. Secret keys live in
 // chrome.storage.local and are never part of the extension source.
-importScripts("settings.js", "corpus.js");
+importScripts("settings.js", "corpus.js", "practice-session.js");
 
 const DEBUG = false;
 const AI_PROVIDER_IDLE_TIMEOUT_MS = 50_000;
@@ -21,6 +21,7 @@ const AI_PROVIDER_HARD_TIMEOUT_MS = 120_000;
 const AI_PROVIDER_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const CORPUS_VIDEO_NOTES_KEY = "ytd_corpus_video_notes";
 const CORPUS_EXPORTS_KEY = "ytd_corpus_exports";
+const PRACTICE_HIGHLIGHTS_KEY = "ytd_practice_highlights_v1";
 const debugLog = (...args) => {
   if (DEBUG) console.log(...args);
 };
@@ -398,6 +399,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "recordCorpusExport") {
     recordCorpusExport(message.exportRecord).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "savePracticeHighlight") {
+    savePracticeHighlight(message.entry).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "getPracticeHighlights") {
+    getPracticeHighlights(message.videoId).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
@@ -1342,6 +1353,60 @@ async function recordCorpusExport(record) {
   return { success: true, alreadyRecorded: exports.some((item) => item?.entryKey === entryKey) };
 }
 
+function cleanPracticeHighlightText(value, limit) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
+}
+
+function normalizePracticeHighlightEntry(entry) {
+  const videoId = cleanPracticeHighlightText(entry?.videoId, 100);
+  const expression = cleanPracticeHighlightText(entry?.expression, 240);
+  const partOfSpeech = cleanPracticeHighlightText(entry?.partOfSpeech, 120);
+  const timestampSeconds = Math.floor(Number(entry?.timestampSeconds));
+  if (!videoId || !expression || !partOfSpeech || !Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
+    return null;
+  }
+  return {
+    videoId,
+    videoTitle: cleanPracticeHighlightText(entry.videoTitle, 500),
+    expression,
+    kind: ["word", "phrase", "sentence_frame"].includes(entry.kind) ? entry.kind : "phrase",
+    partOfSpeech,
+    usageContexts: cleanPracticeHighlightText(entry.usageContexts, 120),
+    spokenFrequency: cleanPracticeHighlightText(entry.spokenFrequency, 40),
+    timestamp: cleanPracticeHighlightText(entry.timestamp, 30),
+    timestampSeconds,
+    timestampedUrl: cleanPracticeHighlightText(entry.timestampedUrl, 2000),
+    selectedText: cleanPracticeHighlightText(entry.selectedText || expression, 300),
+    context: cleanPracticeHighlightText(entry.context, 1800),
+  };
+}
+
+async function savePracticeHighlight(entry) {
+  const normalized = normalizePracticeHighlightEntry(entry);
+  if (!normalized) return { success: false, error: "INVALID_PRACTICE_HIGHLIGHT" };
+  const stored = await chrome.storage.local.get(PRACTICE_HIGHLIGHTS_KEY);
+  const highlightsByVideo = stored[PRACTICE_HIGHLIGHTS_KEY] || {};
+  const merged = YTD_PRACTICE.mergePracticeHighlights([
+    ...(Array.isArray(highlightsByVideo[normalized.videoId]) ? highlightsByVideo[normalized.videoId] : []),
+    normalized,
+  ]);
+  await chrome.storage.local.set({
+    [PRACTICE_HIGHLIGHTS_KEY]: { ...highlightsByVideo, [normalized.videoId]: merged },
+  });
+  return { success: true, count: merged.length };
+}
+
+async function getPracticeHighlights(videoId) {
+  const safeVideoId = cleanPracticeHighlightText(videoId, 100);
+  if (!safeVideoId) return { success: false, error: "INVALID_VIDEO_ID", highlights: [] };
+  const stored = await chrome.storage.local.get(PRACTICE_HIGHLIGHTS_KEY);
+  const highlightsByVideo = stored[PRACTICE_HIGHLIGHTS_KEY] || {};
+  const highlights = YTD_PRACTICE.mergePracticeHighlights(
+    Array.isArray(highlightsByVideo[safeVideoId]) ? highlightsByVideo[safeVideoId] : [],
+  );
+  return { success: true, highlights };
+}
+
 /**
  * Explains selected text using DeepSeek.
  * Provides context, definitions, and clarification for complex terms.
@@ -1956,4 +2021,6 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   getCorpusSettings,
   recordCorpusExport,
   resolveVideoNoteDestination,
+  savePracticeHighlight,
+  getPracticeHighlights,
 };

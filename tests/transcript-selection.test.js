@@ -65,6 +65,13 @@ test("the selection toolbar preserves selection and contains pointer events", ()
   );
 });
 
+test("a prepared Transcript corpus entry becomes a practice highlight before Obsidian handoff", () => {
+  assert.match(
+    source,
+    /function showCorpusEntryPreview\(root, entry, destination\)[\s\S]*?YTD_CORPUS_UI\.mountEntryPreview\(\{ root, entry \}\);[\s\S]*?action: "savePracticeHighlight"/,
+  );
+});
+
 test("leaving Transcript dismisses its selection actions", () => {
   assert.match(
     source,

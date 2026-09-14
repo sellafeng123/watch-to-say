@@ -26,6 +26,7 @@ test("player-caption cards use the contextual-gloss contract and Obsidian handof
   );
   assert.match(source, /YTD_CORPUS_UI\.mountGlossCard/);
   assert.match(source, /YTD_CORPUS_UI\.mountEntryPreview/);
+  assert.match(source, /YTD_CORPUS_UI\.mountEntryPreview\(\{ root, entry \}\);[\s\S]*?action: "savePracticeHighlight"/);
   assert.doesNotMatch(source, /preview\.textContent = markdown/);
   assert.match(source, /action: "recordCorpusExport"/);
   assert.match(source, /buildObsidianAppendUri/);

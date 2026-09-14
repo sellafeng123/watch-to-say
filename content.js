@@ -218,6 +218,7 @@ function showPlayerCorpusEntryPreview(root, entry, destination) {
   });
   root.append(message);
   YTD_CORPUS_UI.mountEntryPreview({ root, entry });
+  chrome.runtime.sendMessage({ action: "savePracticeHighlight", entry }).catch(() => {});
   if (!destination?.vault || !destination?.notePath) {
     const settingsButton = document.createElement("button");
     settingsButton.type = "button";

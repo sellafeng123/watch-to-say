@@ -353,7 +353,7 @@ test("Corpus Palace runtime files load in the required order and do not overclai
     manifest.content_scripts[0].js,
     ["corpus.js", "corpus-ui.js", "practice-session.js", "content.js"],
   );
-  assert.match(read("background.js"), /importScripts\("settings\.js", "corpus\.js"\)/);
+  assert.match(read("background.js"), /importScripts\("settings\.js", "corpus\.js", "practice-session\.js"\)/);
   assert.match(
     read("sidepanel.html"),
     /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="practice-session\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
