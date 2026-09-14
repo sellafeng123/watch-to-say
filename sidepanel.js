@@ -1932,12 +1932,8 @@ function showCorpusEntryPreview(root, entry, destination) {
   const message = document.createElement("div");
   message.className = "explain-text";
   message.textContent = "学习条目已整理完成。";
-  const preview = document.createElement("pre");
-  preview.className = "explain-text";
-  preview.textContent = YTD_CORPUS.renderCorpusEntryMarkdown(entry, {
-    includeTableHeader: destination?.includeTableHeader !== false,
-  });
-  root.append(message, preview);
+  root.append(message);
+  YTD_CORPUS_UI.mountEntryPreview({ root, entry });
   if (!destination?.vault || !destination?.notePath) {
     const settingsButton = document.createElement("button");
     settingsButton.className = "enhance-btn";

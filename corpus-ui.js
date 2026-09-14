@@ -48,6 +48,72 @@ const YTD_CORPUS_UI = (() => {
     root.append(details);
   }
 
+  function kindLabel(value) {
+    return { word: "单词", phrase: "词伙", sentence_frame: "句型" }[value] || "词伙";
+  }
+
+  function createEntryPreviewModel(entry = {}) {
+    const collocationsAndFrame = [
+      ...(entry.collocations || []).map((item) =>
+        `${item.text}${item.noteZh ? ` — ${item.noteZh}` : ""}`,
+      ),
+      entry.sentenceFrame ? `句型: ${entry.sentenceFrame}` : "",
+    ].filter(Boolean);
+    const extensions = [
+      ...(entry.paraphrases || []).map((item) =>
+        `同义: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      ),
+      ...(entry.relatedExtensions || []).map((item) =>
+        `扩展: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      ),
+    ].filter(Boolean);
+    return {
+      expression: entry.expression || "—",
+      meta: `【${kindLabel(entry.kind)}】 · ${frequencyLabel(entry.spokenFrequency)} · 【${entry.learningStatus || "重点"}】`,
+      usageContexts: entry.usageContexts || "未设置，可在编辑时填写",
+      timestamp: entry.timestamp || "—",
+      context: entry.context || "—",
+      meaning: [entry.contextMeaningZh, entry.contextMeaningEn ? `EN: ${entry.contextMeaningEn}` : ""].filter(Boolean).join("\n") || "—",
+      partOfSpeech: entry.partOfSpeech || "—",
+      frequencyReason: entry.frequencyReasonZh || "—",
+      collocationsAndFrame,
+      extensions,
+      personalNote: entry.personalNote || "—",
+    };
+  }
+
+  function addPreviewList(documentRef, root, title, items) {
+    const section = el(documentRef, "section", "corpus-gloss-section");
+    section.append(el(documentRef, "h3", "corpus-gloss-heading", title));
+    if (!items.length) {
+      section.append(el(documentRef, "p", "corpus-gloss-copy", "—"));
+    } else {
+      const list = el(documentRef, "ul", "corpus-gloss-list");
+      items.forEach((item) => list.append(el(documentRef, "li", "corpus-gloss-list-item", item)));
+      section.append(list);
+    }
+    root.append(section);
+  }
+
+  function mountEntryPreview({ root, entry }) {
+    if (!root || !entry) return null;
+    const documentRef = root.ownerDocument || document;
+    const model = createEntryPreviewModel(entry);
+    const card = el(documentRef, "section", "corpus-gloss-card corpus-entry-preview");
+    card.append(el(documentRef, "p", "corpus-gloss-label", "导出预览"));
+    card.append(el(documentRef, "h2", "corpus-gloss-expression", model.expression));
+    addTextSection(documentRef, card, model.meta, model.usageContexts);
+    addTextSection(documentRef, card, `原句语境 · ${model.timestamp}`, model.context);
+    addTextSection(documentRef, card, "AI 语境释义", model.meaning);
+    addTextSection(documentRef, card, "词性", model.partOfSpeech);
+    addTextSection(documentRef, card, "口语使用提示", model.frequencyReason);
+    addPreviewList(documentRef, card, "搭配 / 句型", model.collocationsAndFrame);
+    addPreviewList(documentRef, card, "同义改写 / 扩展", model.extensions);
+    addTextSection(documentRef, card, "我的练习", model.personalNote);
+    root.append(card);
+    return card;
+  }
+
   function mountGlossCard({ root, gloss, selection, onSave }) {
     if (!root || !gloss || !selection) return null;
     const documentRef = root.ownerDocument || document;
@@ -55,6 +121,7 @@ const YTD_CORPUS_UI = (() => {
     const card = el(documentRef, "div", "corpus-gloss-card");
     card.append(el(documentRef, "p", "corpus-gloss-label", "AI 语境释义"));
     card.append(el(documentRef, "h2", "corpus-gloss-expression", gloss.expression));
+    addTextSection(documentRef, card, "适用场景建议", gloss.suggestedUsageContexts || "未建议，可在编辑时填写");
     addTextSection(documentRef, card, gloss.partOfSpeech || "词性", gloss.partOfSpeech);
     addTextSection(documentRef, card, "句中义（EN）", gloss.contextMeaningEn);
     addTextSection(documentRef, card, "句中义（中文）", gloss.contextMeaningZh);
@@ -157,7 +224,7 @@ const YTD_CORPUS_UI = (() => {
     form.append(fieldset);
   }
 
-  return { SPOKEN_FREQUENCY_OPTIONS, createEditorState, mountGlossCard };
+  return { SPOKEN_FREQUENCY_OPTIONS, createEditorState, createEntryPreviewModel, mountEntryPreview, mountGlossCard };
 })();
 
 if (typeof module !== "undefined" && module.exports) module.exports = YTD_CORPUS_UI;
