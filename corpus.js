@@ -234,10 +234,8 @@ const YTD_CORPUS = (() => {
     ].filter(Boolean).join("；");
     const focus = [
       `**${escapeTableCell(entry.expression)}**`,
-      `类型：${kindLabel(entry.kind)}`,
-      `主题：${escapeTableCell(entry.topic) || "未分类"}`,
-      `频率：${spokenFrequencyLabel(entry.spokenFrequency)}`,
-      `状态：${escapeTableCell(entry.learningStatus) || "重点"}`,
+      `\`${kindLabel(entry.kind)}\` · ${spokenFrequencyLabel(entry.spokenFrequency)} · \`${escapeTableCell(entry.learningStatus) || "重点"}\``,
+      `主题：*${escapeTableCell(entry.topic) || "未分类"}*`,
     ].join("<br>");
     const context = [source, escapeTableCell(entry.context)].filter(Boolean).join("<br>");
     const studyNotes = [
