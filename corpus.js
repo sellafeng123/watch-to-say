@@ -185,11 +185,6 @@ const YTD_CORPUS = (() => {
     return escapeMarkdownText(normalizeWhitespace(value, 4000));
   }
 
-  function joinTableValues(items, formatter) {
-    if (!Array.isArray(items) || !items.length) return "";
-    return items.map(formatter).filter(Boolean).join("；");
-  }
-
   function spokenFrequencyLabel(value) {
     return {
       high: "高频",
@@ -212,37 +207,43 @@ const YTD_CORPUS = (() => {
     const source = entry.timestampedUrl
       ? `[${escapeMarkdownText(entry.timestamp)}](${entry.timestampedUrl})`
       : escapeMarkdownText(entry.timestamp);
-    const aiGloss = [
-      entry.contextMeaningZh,
-      entry.contextMeaningEn ? `EN: ${entry.contextMeaningEn}` : "",
-      entry.partOfSpeech ? `词性: ${entry.partOfSpeech}` : "",
-      entry.frequencyReasonZh,
-    ].filter(Boolean).join("；");
-    const collocationsAndFrame = [
-      joinTableValues(entry.collocations, (item) =>
-        `${item.text}${item.noteZh ? ` — ${item.noteZh}` : ""}`,
+    const studySection = (title, lines) => {
+      const content = lines.filter(Boolean);
+      return `**${title}**<br>${content.length ? content.join("<br>") : "—"}`;
+    };
+    const meaningLines = [
+      escapeTableCell(entry.contextMeaningZh),
+      entry.contextMeaningEn ? `EN: ${escapeTableCell(entry.contextMeaningEn)}` : "",
+    ];
+    const collocationLines = [
+      ...(entry.collocations || []).map((item) =>
+        `• ${escapeTableCell(item.text)}${item.noteZh ? ` — ${escapeTableCell(item.noteZh)}` : ""}`,
       ),
-      entry.sentenceFrame ? `句型: ${entry.sentenceFrame}` : "",
-    ].filter(Boolean).join("；");
-    const extensions = [
-      joinTableValues(entry.paraphrases, (item) =>
-        `同义: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      entry.sentenceFrame ? `• 句型: ${escapeTableCell(entry.sentenceFrame)}` : "",
+    ];
+    const extensionLines = [
+      ...(entry.paraphrases || []).map((item) =>
+        `• 同义: ${escapeTableCell(item.expression)}${item.differenceZh ? ` — ${escapeTableCell(item.differenceZh)}` : ""}`,
       ),
-      joinTableValues(entry.relatedExtensions, (item) =>
-        `扩展: ${item.expression}${item.differenceZh ? ` — ${item.differenceZh}` : ""}`,
+      ...(entry.relatedExtensions || []).map((item) =>
+        `• 扩展: ${escapeTableCell(item.expression)}${item.differenceZh ? ` — ${escapeTableCell(item.differenceZh)}` : ""}`,
       ),
-    ].filter(Boolean).join("；");
+    ];
     const focus = [
       `**${escapeTableCell(entry.expression)}**`,
       `\`${kindLabel(entry.kind)}\` · ${spokenFrequencyLabel(entry.spokenFrequency)} · \`${escapeTableCell(entry.learningStatus) || "重点"}\``,
       `主题：*${escapeTableCell(entry.topic) || "未分类"}*`,
     ].join("<br>");
-    const context = [source, escapeTableCell(entry.context)].filter(Boolean).join("<br>");
+    const context = [source, entry.context ? `*${escapeTableCell(entry.context)}*` : ""]
+      .filter(Boolean)
+      .join("<br><br>");
     const studyNotes = [
-      `**AI 语境释义**：${escapeTableCell(aiGloss) || "—"}`,
-      `**搭配/句型**：${escapeTableCell(collocationsAndFrame) || "—"}`,
-      `**同义改写/扩展**：${escapeTableCell(extensions) || "—"}`,
-      `**我的练习**：${escapeTableCell(entry.personalNote) || "—"}`,
+      studySection("AI 语境释义", meaningLines),
+      studySection("词性", [escapeTableCell(entry.partOfSpeech)]),
+      studySection("口语使用提示", [escapeTableCell(entry.frequencyReasonZh)]),
+      studySection("搭配 / 句型", collocationLines),
+      studySection("同义改写 / 扩展", extensionLines),
+      studySection("我的练习", [escapeTableCell(entry.personalNote)]),
     ].join("<br><br>");
     const row = [focus, context, studyNotes];
     const tableRow = `| ${row.join(" | ")} |`;

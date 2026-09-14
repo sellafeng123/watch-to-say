@@ -213,11 +213,13 @@ test("renders the first exported entry in a readable three-column Corpus Palace 
   );
   assert.match(markdown, /\[1:05\]\(https:\/\/www\.youtube\.com\/watch\?v=abc123&t=65s\)/);
   assert.match(markdown, /\*\*get into the zone\*\*<br>`词伙` · 常用 · `重点`<br>主题：\*Study \\\[habits\\\]\*/);
-  assert.match(markdown, /\*\*AI 语境释义\*\*：进入高度专注的状态；EN: to become fully focused；词性: verb phrase；日常学习和工作场景常用/);
-  assert.match(markdown, /\*\*搭配\/句型\*\*：句型: I get into the zone when \.\.\./);
-  assert.match(markdown, /\*\*同义改写\/扩展\*\*：—/);
-  assert.ok(markdown.includes("I &lt;focus&gt; after \\[coffee\\]."));
-  assert.match(markdown, /\*\*我的练习\*\*：说出自己的例子。/);
+  assert.ok(markdown.includes("[1:05](https://www.youtube.com/watch?v=abc123&t=65s)<br><br>*I &lt;focus&gt; after \\[coffee\\].*"));
+  assert.match(markdown, /\*\*AI 语境释义\*\*<br>进入高度专注的状态<br>EN: to become fully focused/);
+  assert.match(markdown, /\*\*词性\*\*<br>verb phrase/);
+  assert.match(markdown, /\*\*口语使用提示\*\*<br>日常学习和工作场景常用/);
+  assert.match(markdown, /\*\*搭配 \/ 句型\*\*<br>• 句型: I get into the zone when \.\.\./);
+  assert.match(markdown, /\*\*同义改写 \/ 扩展\*\*<br>—/);
+  assert.match(markdown, /\*\*我的练习\*\*<br>说出自己的例子。/);
   assert.doesNotMatch(markdown, /^### Context$/m);
   assert.doesNotMatch(markdown, /^### Collocations$/m);
 });
@@ -244,6 +246,6 @@ test("renders later entries as table rows without duplicating the table header",
   assert.doesNotMatch(markdown, /^## 语料总表（宽表）$/m);
   assert.doesNotMatch(markdown, /^\| 重点表达 \| 原句语境 \| 学习笔记 \|$/m);
   assert.match(markdown, /^\| \*\*run errands\*\*<br>`词伙` · 场景常用 · `重点`<br>主题：\*学习与工作\* \|/m);
-  assert.match(markdown, /\*\*搭配\/句型\*\*：run some errands — 处理一些杂事；句型: I need to run errands before \.\.\./);
-  assert.match(markdown, /\*\*同义改写\/扩展\*\*：同义: take care of errands — 更正式/);
+  assert.match(markdown, /\*\*搭配 \/ 句型\*\*<br>• run some errands — 处理一些杂事<br>• 句型: I need to run errands before \.\.\./);
+  assert.match(markdown, /\*\*同义改写 \/ 扩展\*\*<br>• 同义: take care of errands — 更正式/);
 });
