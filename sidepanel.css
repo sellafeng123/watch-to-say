@@ -723,6 +723,35 @@ body {
   background: var(--surface-raised);
 }
 
+.practice-start-btn {
+  width: 100%;
+  margin: 2px 0 10px;
+  border: 1px solid #cbb9e9;
+  border-radius: var(--r-sm);
+  padding: 9px 10px;
+  background: #f7f3ff;
+  color: #5d3f91;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.practice-start-btn:not(:disabled) { cursor: pointer; }
+
+.practice-start-btn:disabled {
+  color: var(--text-muted);
+  opacity: .8;
+}
+
+.practice-highlight {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: #ede3ff;
+  box-shadow: inset 0 -2px 0 #9467dc;
+  color: inherit;
+}
+
 /* A search result can be current without moving the video playback position. */
 .transcript-entry.search-current {
   background: var(--surface-raised);

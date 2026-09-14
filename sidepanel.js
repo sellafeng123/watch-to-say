@@ -45,6 +45,7 @@ let interfaceTranslationInFlight = new Set();
 let interfaceTranslationFailures = new Set();
 let currentNotes = [];
 let currentNotesFilterVideoId = null;
+let currentPracticeHighlights = [];
 const TRANSLATION_MESSAGE_TIMEOUT_MS = 130_000;
 const TRANSLATION_BATCH_SIZE = 3;
 
@@ -579,6 +580,8 @@ async function startDigest(videoId, videoUrl) {
     transcriptScrollObserver = null;
     resetTranscriptSearch();
     lastTranscriptScrollTop = 0;
+    currentPracticeHighlights = [];
+    updatePracticeStartButton();
     pendingTranscriptViewState = await loadTranscriptViewState(videoId);
     // An unseen video always starts in Original, so opening it never spends
     // translation tokens. A saved choice is restored only for this video.
@@ -623,6 +626,7 @@ async function startDigest(videoId, videoUrl) {
       videoInfo.style.display = "block";
     }
 
+    await refreshPracticeHighlights();
     // Always render transcript first
     renderTranscript();
 
@@ -689,6 +693,7 @@ async function startDigest(videoId, videoUrl) {
   currentTranscriptTimestamped = transcriptResult.transcriptTextTimestamped;
   currentTranscriptLanguage = transcriptResult.language || null;
 
+  await refreshPracticeHighlights();
   // Render transcript immediately (no LLM needed)
   renderTranscript();
   showState("results");
@@ -1083,7 +1088,7 @@ function renderTranscript() {
 
     div.innerHTML = `
       <span class="transcript-time">${timestamp}</span>
-      <span class="transcript-text">${renderSubtitleInlineMarkup(group.text)}</span>
+      <span class="transcript-text">${renderPracticeTranscriptMarkup(group.text, currentPracticeHighlights)}</span>
     `;
 
     div.addEventListener("click", (event) =>
@@ -1097,6 +1102,52 @@ function renderTranscript() {
 
   // Start tracking video playback for auto-scroll
   startPlaybackTracking();
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function renderPracticeTranscriptMarkup(text, highlights) {
+  let markup = renderSubtitleInlineMarkup(text);
+  const expressions = [...new Set((highlights || [])
+    .map((item) => String(item?.expression || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean))]
+    .sort((left, right) => right.length - left.length);
+  expressions.forEach((expression) => {
+    const pattern = new RegExp(`(${escapeRegExp(expression)})`, "gi");
+    markup = markup.replace(pattern, '<mark class="practice-highlight" aria-label="本期重点表达">$1</mark>');
+  });
+  return markup;
+}
+
+function updatePracticeStartButton() {
+  const button = document.getElementById("startPracticeBtn");
+  if (!button) return;
+  const count = currentPracticeHighlights.length;
+  button.textContent = `本期表达练习 · 已选 ${count} 条`;
+  button.disabled = count === 0;
+  button.title = count ? "准备本期表达练习" : "先保存一个想练的表达";
+}
+
+async function refreshPracticeHighlights() {
+  if (!currentVideoId) {
+    currentPracticeHighlights = [];
+    updatePracticeStartButton();
+    return;
+  }
+  try {
+    const result = await chrome.runtime.sendMessage({
+      action: "getPracticeHighlights",
+      videoId: currentVideoId,
+    });
+    currentPracticeHighlights = result?.success && Array.isArray(result.highlights)
+      ? result.highlights
+      : [];
+  } catch (_error) {
+    currentPracticeHighlights = [];
+  }
+  updatePracticeStartButton();
 }
 
 // ============================================================
@@ -1934,7 +1985,9 @@ function showCorpusEntryPreview(root, entry, destination) {
   message.textContent = "学习条目已整理完成。";
   root.append(message);
   YTD_CORPUS_UI.mountEntryPreview({ root, entry });
-  chrome.runtime.sendMessage({ action: "savePracticeHighlight", entry }).catch(() => {});
+  chrome.runtime.sendMessage({ action: "savePracticeHighlight", entry })
+    .then(() => refreshPracticeHighlights().then(() => renderTranscript()))
+    .catch(() => {});
   if (!destination?.vault || !destination?.notePath) {
     const settingsButton = document.createElement("button");
     settingsButton.className = "enhance-btn";
