@@ -94,7 +94,7 @@ test("accepts only a validated AI contextual gloss with the selected expression"
     "label": "AI 语境释义",
     "expression": "get into the zone",
     "kind": "phrase",
-    "suggestedTopic": "学习",
+    "suggestedUsageContexts": "学习 · 工作",
     "partOfSpeech": "verb phrase",
     "contextMeaningEn": "to become fully focused",
     "contextMeaningZh": "进入专注状态",
@@ -108,6 +108,7 @@ test("accepts only a validated AI contextual gloss with the selected expression"
 
   assert.equal(valid.expression, "get into the zone");
   assert.equal(valid.label, "AI 语境释义");
+  assert.equal(valid.suggestedUsageContexts, "学习 · 工作");
   assert.equal(
     helpers.validateContextualGlossResponse(`{
       "label":"AI 语境释义",

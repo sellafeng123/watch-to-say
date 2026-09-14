@@ -8,7 +8,7 @@ const YTD_CORPUS_UI = (() => {
 
   function createEditorState(gloss) {
     return {
-      topic: gloss?.suggestedTopic || "",
+      usageContexts: gloss?.suggestedUsageContexts || "",
       expression: gloss?.expression || "",
       kind: gloss?.kind || "phrase",
       spokenFrequency: gloss?.spokenFrequency || "situational",
@@ -84,7 +84,7 @@ const YTD_CORPUS_UI = (() => {
     const form = el(documentRef, "form", "corpus-editor");
     form.append(el(documentRef, "h2", "corpus-editor-title", "编辑学习条目"));
     const fields = [
-      ["topic", "主题", "text"],
+      ["usageContexts", "适用场景（可选）", "text"],
       ["expression", "词伙 / 表达", "text"],
     ];
     fields.forEach(([key, label, type]) => {
@@ -115,7 +115,7 @@ const YTD_CORPUS_UI = (() => {
       event.preventDefault();
       const data = new FormData(form);
       const edits = {
-        topic: data.get("topic"), expression: data.get("expression"), kind: data.get("kind"),
+        usageContexts: data.get("usageContexts"), expression: data.get("expression"), kind: data.get("kind"),
         spokenFrequency: data.get("spokenFrequency"), personalNote: data.get("personalNote"),
         selectedParaphraseIndexes: data.getAll("selectedParaphraseIndexes").map(Number),
         selectedRelatedExtensionIndexes: data.getAll("selectedRelatedExtensionIndexes").map(Number),

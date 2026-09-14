@@ -89,7 +89,7 @@ const YTD_CORPUS = (() => {
       label: "AI 语境释义",
       expression,
       kind,
-      suggestedTopic: normalizeWhitespace(parsed.suggestedTopic, 100),
+      suggestedUsageContexts: normalizeWhitespace(parsed.suggestedUsageContexts, 100),
       partOfSpeech: normalizeWhitespace(parsed.partOfSpeech, 120),
       contextMeaningEn,
       contextMeaningZh,
@@ -119,7 +119,7 @@ const YTD_CORPUS = (() => {
       : normalizedGloss.spokenFrequency;
     const expression = normalizeWhitespace(edits.expression, 240) || normalizedGloss.expression;
     return {
-      topic: normalizeWhitespace(edits.topic, 120) || normalizedGloss.suggestedTopic,
+      usageContexts: normalizeWhitespace(edits.usageContexts, 120) || normalizedGloss.suggestedUsageContexts,
       expression,
       kind,
       spokenFrequency,
@@ -231,9 +231,9 @@ const YTD_CORPUS = (() => {
     ];
     const focus = [
       `**${escapeTableCell(entry.expression)}**`,
-      `\`${kindLabel(entry.kind)}\` · ${spokenFrequencyLabel(entry.spokenFrequency)} · \`${escapeTableCell(entry.learningStatus) || "重点"}\``,
-      `主题：*${escapeTableCell(entry.topic) || "未分类"}*`,
-    ].join("<br>");
+      `【${kindLabel(entry.kind)}】 · ${spokenFrequencyLabel(entry.spokenFrequency)} · 【${escapeTableCell(entry.learningStatus) || "重点"}】`,
+      entry.usageContexts ? `适用场景：*${escapeTableCell(entry.usageContexts)}*` : "",
+    ].filter(Boolean).join("<br>");
     const context = [source, entry.context ? `*${escapeTableCell(entry.context)}*` : ""]
       .filter(Boolean)
       .join("<br><br>");

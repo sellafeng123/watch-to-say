@@ -56,7 +56,7 @@ test("rebuilds contextual gloss from tolerant JSON without untrusted fields", ()
   "label": "AI 语境释义",
   "expression": "get into the zone",
   "kind": "phrase",
-  "suggestedTopic": "学习状态",
+  "suggestedUsageContexts": "学习 · 工作",
   "partOfSpeech": "verb phrase",
   "contextMeaningEn": "to become fully focused",
   "contextMeaningZh": "进入高度专注的状态",
@@ -82,7 +82,7 @@ test("rebuilds contextual gloss from tolerant JSON without untrusted fields", ()
     label: "AI 语境释义",
     expression: "get into the zone",
     kind: "phrase",
-    suggestedTopic: "学习状态",
+    suggestedUsageContexts: "学习 · 工作",
     partOfSpeech: "verb phrase",
     contextMeaningEn: "to become fully focused",
     contextMeaningZh: "进入高度专注的状态",
@@ -120,7 +120,7 @@ test("builds an entry with only learning extensions selected by the user", () =>
       label: "AI 语境释义",
       expression: "get into the zone",
       kind: "phrase",
-      suggestedTopic: "Study habits",
+      suggestedUsageContexts: "学习 · 工作",
       partOfSpeech: "verb phrase",
       contextMeaningEn: "to become fully focused",
       contextMeaningZh: "进入高度专注的状态",
@@ -136,7 +136,7 @@ test("builds an entry with only learning extensions selected by the user", () =>
       ],
     },
     edits: {
-      topic: "学习与工作",
+      usageContexts: "学习 · 工作",
       expression: "get into the zone",
       kind: "phrase",
       spokenFrequency: "high",
@@ -150,7 +150,7 @@ test("builds an entry with only learning extensions selected by the user", () =>
     { expression: "focus deeply", differenceZh: "更直接" },
   ]);
   assert.deepEqual(entry.relatedExtensions, []);
-  assert.equal(entry.topic, "学习与工作");
+  assert.equal(entry.usageContexts, "学习 · 工作");
   assert.equal(entry.spokenFrequency, "high");
   assert.equal(entry.timestamp, "1:05");
 });
@@ -185,7 +185,7 @@ test("creates a stable safe video-note path and encoded append URI", () => {
 
 test("renders the first exported entry in a readable three-column Corpus Palace table", () => {
   const markdown = corpus.renderCorpusEntryMarkdown({
-    topic: "Study [habits]",
+    usageContexts: "Study [habits]",
     expression: "get into the zone",
     kind: "phrase",
     spokenFrequency: "common",
@@ -212,7 +212,7 @@ test("renders the first exported entry in a readable three-column Corpus Palace 
     /^\| 重点表达 \| 原句语境 \| 学习笔记 \|$/m,
   );
   assert.match(markdown, /\[1:05\]\(https:\/\/www\.youtube\.com\/watch\?v=abc123&t=65s\)/);
-  assert.match(markdown, /\*\*get into the zone\*\*<br>`词伙` · 常用 · `重点`<br>主题：\*Study \\\[habits\\\]\*/);
+  assert.match(markdown, /\*\*get into the zone\*\*<br>【词伙】 · 常用 · 【重点】<br>适用场景：\*Study \\\[habits\\\]\*/);
   assert.ok(markdown.includes("[1:05](https://www.youtube.com/watch?v=abc123&t=65s)<br><br>*I &lt;focus&gt; after \\[coffee\\].*"));
   assert.match(markdown, /\*\*AI 语境释义\*\*<br>进入高度专注的状态<br>EN: to become fully focused/);
   assert.match(markdown, /\*\*词性\*\*<br>verb phrase/);
@@ -226,7 +226,7 @@ test("renders the first exported entry in a readable three-column Corpus Palace 
 
 test("renders later entries as table rows without duplicating the table header", () => {
   const markdown = corpus.renderCorpusEntryMarkdown({
-    topic: "学习与工作",
+    usageContexts: "学习 · 工作",
     expression: "run errands",
     kind: "phrase",
     spokenFrequency: "situational",
@@ -245,7 +245,17 @@ test("renders later entries as table rows without duplicating the table header",
 
   assert.doesNotMatch(markdown, /^## 语料总表（宽表）$/m);
   assert.doesNotMatch(markdown, /^\| 重点表达 \| 原句语境 \| 学习笔记 \|$/m);
-  assert.match(markdown, /^\| \*\*run errands\*\*<br>`词伙` · 场景常用 · `重点`<br>主题：\*学习与工作\* \|/m);
+  assert.match(markdown, /^\| \*\*run errands\*\*<br>【词伙】 · 场景常用 · 【重点】<br>适用场景：\*学习 · 工作\* \|/m);
   assert.match(markdown, /\*\*搭配 \/ 句型\*\*<br>• run some errands — 处理一些杂事<br>• 句型: I need to run errands before \.\.\./);
   assert.match(markdown, /\*\*同义改写 \/ 扩展\*\*<br>• 同义: take care of errands — 更正式/);
+});
+
+test("omits usage contexts for a broadly usable expression", () => {
+  const markdown = corpus.renderCorpusEntryMarkdown({
+    expression: "get", kind: "word", spokenFrequency: "high", learningStatus: "重点",
+    timestamp: "0:05", context: "I get it.", contextMeaningZh: "理解", contextMeaningEn: "to understand",
+  });
+
+  assert.match(markdown, /\*\*get\*\*<br>【单词】 · 高频 · 【重点】 \|/);
+  assert.doesNotMatch(markdown, /适用场景：/);
 });

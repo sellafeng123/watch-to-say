@@ -7,14 +7,14 @@ test("prepares editable corpus state without preselecting AI extensions", () => 
   const state = ui.createEditorState({
     expression: "get into the zone",
     kind: "phrase",
-    suggestedTopic: "Study habits",
+    suggestedUsageContexts: "学习 · 工作",
     spokenFrequency: "common",
     paraphrases: [{ expression: "focus deeply", differenceZh: "更直接" }],
     relatedExtensions: [{ expression: "zone out", differenceZh: "语义相反" }],
   });
 
   assert.deepEqual(state, {
-    topic: "Study habits",
+    usageContexts: "学习 · 工作",
     expression: "get into the zone",
     kind: "phrase",
     spokenFrequency: "common",
