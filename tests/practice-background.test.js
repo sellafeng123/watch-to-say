@@ -104,3 +104,25 @@ test("rejects malformed highlights instead of storing a broad unvalidated record
   assert.deepEqual(JSON.parse(JSON.stringify(result)), { success: false, error: "INVALID_PRACTICE_HIGHLIGHT" });
   assert.equal(storage.ytd_practice_highlights_v1, undefined);
 });
+
+test("keeps AI practice materials bounded to the learner-selected highlight IDs", () => {
+  const { helpers } = loadPracticeHelpers();
+  const materials = helpers.validatePracticeMaterials(`{
+    "label":"AI 练习材料",
+    "items":[
+      {"id":"practice-a","internalization":{"promptZh":"先替换一个真实场景。","reference":"I get into the zone when I study."},"speaking":{"question":"How do you focus?","reference":"I get into the zone after coffee."}},
+      {"id":"not-selected","internalization":{"promptZh":"ignore","reference":"ignore"},"speaking":{"question":"ignore","reference":"ignore"}}
+    ],
+    "synthesis":{"itemIds":["practice-a","not-selected"],"question":"Tell a story.","reference":"I get into the zone."}
+  }`, ["practice-a"]);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(materials)), {
+    label: "AI 练习材料",
+    items: [{
+      id: "practice-a",
+      internalization: { promptZh: "先替换一个真实场景。", reference: "I get into the zone when I study." },
+      speaking: { question: "How do you focus?", reference: "I get into the zone after coffee." },
+    }],
+    synthesis: null,
+  });
+});

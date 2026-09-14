@@ -923,6 +923,48 @@ function parseLooseJson(text) {
   }
 }
 
+function practiceMaterialText(value, limit = 1000) {
+  return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
+}
+
+function validatePracticeMaterials(rawResponse, selectedIds) {
+  let parsed;
+  try {
+    parsed = typeof rawResponse === "string" ? parseLooseJson(rawResponse) : rawResponse;
+  } catch (_error) {
+    return null;
+  }
+  if (!parsed || parsed.label !== "AI 练习材料" || !Array.isArray(selectedIds)) return null;
+  const allowedIds = new Set(selectedIds.filter((id) => typeof id === "string" && id));
+  const items = (Array.isArray(parsed.items) ? parsed.items : []).slice(0, 80)
+    .map((item) => {
+      const id = practiceMaterialText(item?.id, 120);
+      const internalization = {
+        promptZh: practiceMaterialText(item?.internalization?.promptZh, 600),
+        reference: practiceMaterialText(item?.internalization?.reference, 1000),
+      };
+      const speaking = {
+        question: practiceMaterialText(item?.speaking?.question, 600),
+        reference: practiceMaterialText(item?.speaking?.reference, 1200),
+      };
+      if (!allowedIds.has(id) || !internalization.promptZh || !internalization.reference || !speaking.question || !speaking.reference) return null;
+      return { id, internalization, speaking };
+    })
+    .filter(Boolean);
+  const synthesisIds = (Array.isArray(parsed.synthesis?.itemIds) ? parsed.synthesis.itemIds : [])
+    .filter((id) => allowedIds.has(id))
+    .slice(0, 3);
+  const synthesisQuestion = practiceMaterialText(parsed.synthesis?.question, 600);
+  const synthesisReference = practiceMaterialText(parsed.synthesis?.reference, 1200);
+  return {
+    label: "AI 练习材料",
+    items,
+    synthesis: synthesisIds.length >= 2 && synthesisQuestion && synthesisReference
+      ? { itemIds: synthesisIds, question: synthesisQuestion, reference: synthesisReference }
+      : null,
+  };
+}
+
 // ============================================================
 // DEEPSEEK ANALYSIS
 // ============================================================
@@ -2023,4 +2065,5 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   resolveVideoNoteDestination,
   savePracticeHighlight,
   getPracticeHighlights,
+  validatePracticeMaterials,
 };
