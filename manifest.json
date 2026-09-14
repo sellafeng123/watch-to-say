@@ -31,7 +31,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
-      "js": ["corpus.js", "corpus-ui.js", "content.js"],
+      "js": ["corpus.js", "corpus-ui.js", "practice-session.js", "content.js"],
       "run_at": "document_idle"
     }
   ],

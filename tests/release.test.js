@@ -20,6 +20,15 @@ test("manifest uses minimized install-time permissions", () => {
   assert.equal(manifest.version, "1.2.0");
 });
 
+test("release allowlist includes every declared Corpus Palace runtime module", () => {
+  const manifest = JSON.parse(read("manifest.json"));
+  const releaseCheck = read("scripts/check-release.sh");
+
+  for (const script of manifest.content_scripts[0].js) {
+    assert.ok(releaseCheck.includes(`"${script}"`));
+  }
+});
+
 test("release copy documents current scope without em dashes", () => {
   const readme = read("README.md");
   const chineseReadme = read("README.zh-CN.md");
@@ -342,12 +351,12 @@ test("Corpus Palace runtime files load in the required order and do not overclai
   const manifest = JSON.parse(read("manifest.json"));
   assert.deepEqual(
     manifest.content_scripts[0].js,
-    ["corpus.js", "corpus-ui.js", "content.js"],
+    ["corpus.js", "corpus-ui.js", "practice-session.js", "content.js"],
   );
   assert.match(read("background.js"), /importScripts\("settings\.js", "corpus\.js"\)/);
   assert.match(
     read("sidepanel.html"),
-    /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
+    /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="practice-session\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
   );
 
   const learnerRuntime = [

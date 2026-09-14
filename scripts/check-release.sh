@@ -30,6 +30,7 @@ public_allowlist=(
   "settings.js"
   "corpus.js"
   "corpus-ui.js"
+  "practice-session.js"
   "content.js"
   "sidepanel.html"
   "sidepanel.css"
