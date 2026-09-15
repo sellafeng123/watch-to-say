@@ -1,0 +1,96 @@
+{
+  "id": "ielts-local",
+  "name": "IELTS local question bank",
+  "source": "bundled_ielts",
+  "profiles": [
+    "ielts"
+  ],
+  "questions": [
+    {
+      "id": "question-1sgxx36",
+      "bankId": "ielts-local",
+      "source": "bundled_ielts",
+      "profiles": [
+        "ielts"
+      ],
+      "part": "part1",
+      "topic": "Hometown",
+      "question": "Where is your hometown?",
+      "cuePoints": [],
+      "parentCueCardId": null,
+      "season": "",
+      "createdAt": 0
+    },
+    {
+      "id": "question-1t28bnw",
+      "bankId": "ielts-local",
+      "source": "bundled_ielts",
+      "profiles": [
+        "ielts"
+      ],
+      "part": "part1",
+      "topic": "Hometown",
+      "question": "What do you like most about your hometown?",
+      "cuePoints": [],
+      "parentCueCardId": null,
+      "season": "",
+      "createdAt": 0
+    },
+    {
+      "id": "question-1lnrz0t",
+      "bankId": "ielts-local",
+      "source": "bundled_ielts",
+      "profiles": [
+        "ielts"
+      ],
+      "part": "part2",
+      "topic": "A place you enjoy visiting",
+      "question": "Describe a place you enjoy visiting.",
+      "cuePoints": [
+        "Where it is",
+        "Who you go with",
+        "Why you like it"
+      ],
+      "parentCueCardId": null,
+      "season": "",
+      "createdAt": 0
+    },
+    {
+      "id": "question-j7gou9",
+      "bankId": "ielts-local",
+      "source": "bundled_ielts",
+      "profiles": [
+        "ielts"
+      ],
+      "part": "part3",
+      "topic": "A place you enjoy visiting",
+      "question": "Why do people enjoy visiting the same place again?",
+      "cuePoints": [],
+      "parentCueCardId": "question-1lnrz0t",
+      "season": "",
+      "createdAt": 0
+    },
+    {
+      "id": "question-1eibsf3",
+      "bankId": "ielts-local",
+      "source": "bundled_ielts",
+      "profiles": [
+        "ielts"
+      ],
+      "part": "part3",
+      "topic": "A place you enjoy visiting",
+      "question": "How can tourism change a local area?",
+      "cuePoints": [],
+      "parentCueCardId": "question-1lnrz0t",
+      "season": "",
+      "createdAt": 0
+    }
+  ],
+  "warnings": [
+    {
+      "page": 2,
+      "text": "3. This numbered sentence has no question mark",
+      "reason": "unparsed"
+    }
+  ]
+}

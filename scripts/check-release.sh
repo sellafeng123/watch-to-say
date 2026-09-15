@@ -97,6 +97,14 @@ for forbidden in "config.js" ".DS_Store" ".git"; do
   done
 done
 
+for file in "${release_files[@]}"; do
+  case "$file" in
+    data/ielts-question-bank*.json|tmp/ielts-ocr-*.json|scripts/*)
+      fail "local IELTS data or development tooling entered the release list: $file"
+      ;;
+  esac
+done
+
 command -v node >/dev/null 2>&1 || fail "Node.js is required"
 
 credential_scan_files=("${release_files[@]}")

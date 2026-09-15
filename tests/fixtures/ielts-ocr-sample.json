@@ -1,0 +1,32 @@
+[
+  {
+    "page": 1,
+    "lines": [
+      { "text": "Partl", "confidence": 0.96, "x": 0.08, "y": 0.91 },
+      { "text": "Hometown", "confidence": 0.99, "x": 0.08, "y": 0.82 },
+      { "text": "1. Where is your hometown?", "confidence": 0.98, "x": 0.10, "y": 0.66 }
+    ]
+  },
+  {
+    "page": 2,
+    "lines": [
+      { "text": "2. What do you like most about your hometown?", "confidence": 0.98, "x": 0.10, "y": 0.96 },
+      { "text": "3. This numbered sentence has no question mark", "confidence": 0.99, "x": 0.10, "y": 0.90 },
+      { "text": "Part 2", "confidence": 0.99, "x": 0.08, "y": 0.78 },
+      { "text": "A place you enjoy visiting", "confidence": 0.98, "x": 0.08, "y": 0.70 },
+      { "text": "Describe a place you enjoy visiting.", "confidence": 0.99, "x": 0.10, "y": 0.60 },
+      { "text": "You should say:", "confidence": 0.99, "x": 0.10, "y": 0.51 },
+      { "text": "Where it is", "confidence": 0.99, "x": 0.14, "y": 0.42 },
+      { "text": "Who you go with", "confidence": 0.99, "x": 0.14, "y": 0.33 },
+      { "text": "Why you like it", "confidence": 0.99, "x": 0.14, "y": 0.24 }
+    ]
+  },
+  {
+    "page": 3,
+    "lines": [
+      { "text": "Part 3", "confidence": 0.99, "x": 0.08, "y": 0.90 },
+      { "text": "1. Why do people enjoy visiting the same place again?", "confidence": 0.99, "x": 0.10, "y": 0.72 },
+      { "text": "2. How can tourism change a local area?", "confidence": 0.99, "x": 0.10, "y": 0.58 }
+    ]
+  }
+]

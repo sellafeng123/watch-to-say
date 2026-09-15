@@ -19,6 +19,9 @@ skills-lock.json
 .playwright-mcp/
 node_modules/
 dist/
+tmp/ielts-ocr-*.json
+data/ielts-question-bank.local.json
+dist/*-local-with-question-bank.zip
 
 # Environment
 .env
