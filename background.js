@@ -27,6 +27,7 @@ const QUESTION_BANK_IMPORT_CHUNK_CHARS = 12_000;
 const QUESTION_BANK_IMPORT_CONCURRENCY = 3;
 const QUESTION_BANK_PREVIEW_TTL_MS = 30 * 60 * 1000;
 const QUESTION_BANK_NAME_CHARS = 120;
+const DEFAULT_QUESTION_BANK_NAME = "Learner question bank";
 const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
 const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
 const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
@@ -568,8 +569,8 @@ async function previewQuestionBankImport(draft = {}) {
   if (draft.sourceText.length > YTD_QUESTION_BANK.LIMITS.maxPasteChars) {
     return questionBankError("PASTE_TOO_LARGE");
   }
-  const name = cleanQuestionBankText(draft.name, QUESTION_BANK_NAME_CHARS);
-  if (!name) return questionBankError("INVALID_BANK_NAME");
+  const name = cleanQuestionBankText(draft.name, QUESTION_BANK_NAME_CHARS)
+    || DEFAULT_QUESTION_BANK_NAME;
   const profiles = normalizeQuestionBankProfiles(draft.profiles);
   if (!profiles.length) return questionBankError("INVALID_BANK_PROFILES");
 

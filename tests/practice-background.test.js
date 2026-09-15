@@ -331,6 +331,26 @@ test("rejects an 80,001-character bank paste before loading prompts or calling D
   assert.equal(fetches, 0);
 });
 
+test("gives an unnamed learner import a deterministic backend-safe display name", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: async (url) => url.startsWith("chrome-extension://")
+      ? { ok: true, text: async () => prompt }
+      : completion(JSON.stringify({
+        label: "AI 题库识别",
+        questions: [{ part: null, topic: "Daily", question: "What do you enjoy doing after work?", cuePoints: [] }],
+        unrecognized: [],
+      })),
+  });
+  const result = await helpers.previewQuestionBankImport({
+    name: "",
+    profiles: ["daily"],
+    sourceText: "What do you enjoy doing after work?",
+  });
+  assert.equal(result.success, true);
+  assert.equal(result.summary.name, "Learner question bank");
+});
+
 test("recognizes paragraph chunks no larger than 12,000 characters with at most three AI calls in flight", async () => {
   const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
   const paragraphs = Array.from({ length: 5 }, (_, index) => (

@@ -57,12 +57,19 @@ const YTD_OPTIONS = (() => {
       questionBankHelp:
         "Paste questions, recognize the structure, then review it before saving. Your original paste is discarded after a successful save.",
       questionBankName: "Bank name",
+      questionBankDefaultName: "Speaking question bank",
       questionBankProfiles: "Use with",
       questionBankProfileIelts: "IELTS",
       questionBankProfileWork: "Work",
       questionBankProfileDaily: "Daily conversation",
       questionBankProfileTravel: "Travel",
       questionBankProfileGeneral: "General speaking",
+      questionBankProfileLabel: ({ profile }) => ({
+        ielts: "IELTS", work: "Work", daily: "Daily conversation", travel: "Travel", general: "General speaking",
+      })[profile] || profile,
+      questionBankPartLabel: ({ part }) => ({
+        part1: "Part 1", part2: "Part 2", part3: "Part 3",
+      })[part] || part,
       questionBankSourceText: "Questions to recognize",
       questionBankRecognize: "Recognize question bank",
       questionBankProfilesRequired: "Choose at least one profile.",
@@ -76,6 +83,7 @@ const YTD_OPTIONS = (() => {
       questionBankPartCount: ({ part, count }) => `${part}: ${count}`,
       questionBankSampleQuestions: "Sample questions",
       questionBankUnrecognized: ({ count }) => `${count} unrecognized fragments`,
+      questionBankUnrecognizedItems: "Unrecognized fragments to review",
       questionBankSave: "Save question bank",
       questionBankSaving: "Saving question bank…",
       questionBankSaved: "Question bank saved.",
@@ -91,6 +99,7 @@ const YTD_OPTIONS = (() => {
         "Paste replacement questions and recognize them before saving. The saved bank is unchanged until then.",
       questionBankDeleted: "Question bank deleted.",
       questionBankDeleteFailed: "Could not delete this question bank.",
+      questionBankLoadFailed: "Could not refresh saved question banks. Please try again.",
       questionBankDeleteConfirm: "Delete this question bank? This cannot be undone.",
       localData: "Local data",
       localDataHelp:
@@ -171,12 +180,19 @@ const YTD_OPTIONS = (() => {
       questionBankHelp:
         "粘贴题目后先识别结构，再检查预览并保存。保存成功后，原始粘贴内容会被丢弃。",
       questionBankName: "题库名称",
+      questionBankDefaultName: "口语题库",
       questionBankProfiles: "适用场景",
       questionBankProfileIelts: "雅思",
       questionBankProfileWork: "职场",
       questionBankProfileDaily: "日常聊天",
       questionBankProfileTravel: "旅行",
       questionBankProfileGeneral: "通用口语",
+      questionBankProfileLabel: ({ profile }) => ({
+        ielts: "雅思", work: "职场", daily: "日常聊天", travel: "旅行", general: "通用口语",
+      })[profile] || profile,
+      questionBankPartLabel: ({ part }) => ({
+        part1: "第一部分", part2: "第二部分", part3: "第三部分",
+      })[part] || part,
       questionBankSourceText: "待识别题目",
       questionBankRecognize: "识别题库",
       questionBankProfilesRequired: "请至少选择一个适用场景。",
@@ -189,6 +205,7 @@ const YTD_OPTIONS = (() => {
       questionBankPartCount: ({ part, count }) => `${part}: ${count}`,
       questionBankSampleQuestions: "题目示例",
       questionBankUnrecognized: ({ count }) => `${count} 段未识别内容`,
+      questionBankUnrecognizedItems: "未识别内容，供你检查",
       questionBankSave: "保存题库",
       questionBankSaving: "正在保存题库…",
       questionBankSaved: "题库已保存。",
@@ -203,6 +220,7 @@ const YTD_OPTIONS = (() => {
       questionBankReplacing: "请粘贴替换题目并重新识别。完成保存前，原题库不会被修改。",
       questionBankDeleted: "题库已删除。",
       questionBankDeleteFailed: "无法删除题库。",
+      questionBankLoadFailed: "无法刷新已保存题库，请重试。",
       questionBankDeleteConfirm: "要删除这个题库吗？此操作无法撤销。",
       localData: "本地数据",
       localDataHelp:
@@ -477,6 +495,7 @@ const YTD_OPTIONS = (() => {
       banks: [],
       loading: false,
       statusKey: "",
+      operation: 0,
     };
 
     function questionBankCopy() {
@@ -484,12 +503,15 @@ const YTD_OPTIONS = (() => {
         title: translate(currentLanguage, "questionBankTitle"),
         help: translate(currentLanguage, "questionBankHelp"),
         bankName: translate(currentLanguage, "questionBankName"),
+        defaultBankName: translate(currentLanguage, "questionBankDefaultName"),
         profiles: translate(currentLanguage, "questionBankProfiles"),
         profileIelts: translate(currentLanguage, "questionBankProfileIelts"),
         profileWork: translate(currentLanguage, "questionBankProfileWork"),
         profileDaily: translate(currentLanguage, "questionBankProfileDaily"),
         profileTravel: translate(currentLanguage, "questionBankProfileTravel"),
         profileGeneral: translate(currentLanguage, "questionBankProfileGeneral"),
+        profileLabel: (params) => translate(currentLanguage, "questionBankProfileLabel", params),
+        partLabel: (params) => translate(currentLanguage, "questionBankPartLabel", params),
         sourceText: translate(currentLanguage, "questionBankSourceText"),
         recognize: translate(currentLanguage, "questionBankRecognize"),
         profilesRequired: translate(currentLanguage, "questionBankProfilesRequired"),
@@ -499,6 +521,7 @@ const YTD_OPTIONS = (() => {
         partCount: (params) => translate(currentLanguage, "questionBankPartCount", params),
         sampleQuestions: translate(currentLanguage, "questionBankSampleQuestions"),
         unrecognized: (params) => translate(currentLanguage, "questionBankUnrecognized", params),
+        unrecognizedItems: translate(currentLanguage, "questionBankUnrecognizedItems"),
         save: translate(currentLanguage, "questionBankSave"),
         savedBanks: translate(currentLanguage, "questionBankSavedBanks"),
         rename: translate(currentLanguage, "questionBankRename"),
@@ -531,10 +554,29 @@ const YTD_OPTIONS = (() => {
       });
     }
 
-    async function refreshQuestionBanks() {
-      const result = await requestQuestionBank({ action: "listQuestionBanks" });
-      if (result?.success) questionBankState.banks = result.banks || [];
-      return result;
+    function beginQuestionBankOperation(statusKey) {
+      if (questionBankState.loading) return null;
+      const operation = questionBankState.operation + 1;
+      questionBankState.operation = operation;
+      questionBankState.loading = true;
+      questionBankState.statusKey = statusKey;
+      return operation;
+    }
+
+    function isCurrentQuestionBankOperation(operation) {
+      return questionBankState.operation === operation;
+    }
+
+    async function refreshQuestionBanks(operation) {
+      try {
+        const result = await requestQuestionBank({ action: "listQuestionBanks" });
+        if (isCurrentQuestionBankOperation(operation) && result?.success) {
+          questionBankState.banks = result.banks || [];
+        }
+        return result;
+      } catch (_error) {
+        return null;
+      }
     }
 
     const baseQuestionBankCallbacks = createQuestionBankCallbacks({
@@ -546,44 +588,87 @@ const YTD_OPTIONS = (() => {
     });
     const questionBankCallbacks = {
       async onRecognize(draft) {
+        const operation = beginQuestionBankOperation("questionBankRecognizing");
+        if (operation === null) return;
         questionBankState.draft = draft;
         questionBankState.preview = null;
-        questionBankState.loading = true;
-        questionBankState.statusKey = "questionBankRecognizing";
         renderQuestionBankManager();
-        const result = await baseQuestionBankCallbacks.onRecognize(draft);
-        questionBankState.loading = false;
-        questionBankState.preview = result?.success ? result : null;
-        questionBankState.statusKey = result?.success
-          ? "questionBankPreviewReady"
-          : "questionBankRecognitionFailed";
-        renderQuestionBankManager();
+        try {
+          const result = await baseQuestionBankCallbacks.onRecognize(draft);
+          if (!isCurrentQuestionBankOperation(operation)) return;
+          questionBankState.preview = result?.success ? result : null;
+          questionBankState.statusKey = result?.success
+            ? "questionBankPreviewReady"
+            : "questionBankRecognitionFailed";
+        } catch (_error) {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.statusKey = "questionBankRecognitionFailed";
+          }
+        } finally {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.loading = false;
+            renderQuestionBankManager();
+          }
+        }
       },
       async onSave(previewToken) {
-        questionBankState.loading = true;
-        questionBankState.statusKey = "questionBankSaving";
+        const operation = beginQuestionBankOperation("questionBankSaving");
+        if (operation === null) return;
         renderQuestionBankManager();
-        const result = await baseQuestionBankCallbacks.onSave(previewToken);
-        questionBankState.loading = false;
-        if (result?.success) {
-          questionBankState.draft = { name: "", profiles: [], sourceText: "", replaceBankId: null };
-          questionBankState.preview = null;
-          questionBankState.statusKey = "questionBankSaved";
-          await refreshQuestionBanks();
-        } else {
-          questionBankState.statusKey = "questionBankSaveFailed";
+        try {
+          const result = await baseQuestionBankCallbacks.onSave(previewToken);
+          if (!isCurrentQuestionBankOperation(operation)) return;
+          if (result?.success) {
+            questionBankState.draft = { name: "", profiles: [], sourceText: "", replaceBankId: null };
+            questionBankState.preview = null;
+            questionBankState.statusKey = "questionBankSaved";
+            const refreshed = await refreshQuestionBanks(operation);
+            if (isCurrentQuestionBankOperation(operation) && !refreshed?.success) {
+              questionBankState.statusKey = "questionBankLoadFailed";
+            }
+          } else {
+            questionBankState.statusKey = "questionBankSaveFailed";
+          }
+        } catch (_error) {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.statusKey = "questionBankSaveFailed";
+          }
+        } finally {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.loading = false;
+            renderQuestionBankManager();
+          }
         }
-        renderQuestionBankManager();
       },
       async onRename(bankId, name) {
-        const result = await baseQuestionBankCallbacks.onRename(bankId, name);
-        questionBankState.statusKey = result?.success
-          ? "questionBankRenamed"
-          : "questionBankRenameFailed";
-        if (result?.success) await refreshQuestionBanks();
+        const operation = beginQuestionBankOperation("");
+        if (operation === null) return;
         renderQuestionBankManager();
+        try {
+          const result = await baseQuestionBankCallbacks.onRename(bankId, name);
+          if (!isCurrentQuestionBankOperation(operation)) return;
+          questionBankState.statusKey = result?.success
+            ? "questionBankRenamed"
+            : "questionBankRenameFailed";
+          if (result?.success) {
+            const refreshed = await refreshQuestionBanks(operation);
+            if (isCurrentQuestionBankOperation(operation) && !refreshed?.success) {
+              questionBankState.statusKey = "questionBankLoadFailed";
+            }
+          }
+        } catch (_error) {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.statusKey = "questionBankRenameFailed";
+          }
+        } finally {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.loading = false;
+            renderQuestionBankManager();
+          }
+        }
       },
       onReplace(bankId) {
+        if (questionBankState.loading) return;
         const bank = questionBankState.banks.find((candidate) => candidate.id === bankId);
         if (!bank) return;
         questionBankState.draft = {
@@ -597,17 +682,47 @@ const YTD_OPTIONS = (() => {
         renderQuestionBankManager();
       },
       async onDelete(bankId) {
-        const result = await baseQuestionBankCallbacks.onDelete(bankId);
-        if (result?.cancelled) return;
-        questionBankState.statusKey = result?.success
-          ? "questionBankDeleted"
-          : "questionBankDeleteFailed";
-        if (result?.success) await refreshQuestionBanks();
+        const operation = beginQuestionBankOperation("");
+        if (operation === null) return;
         renderQuestionBankManager();
+        try {
+          const result = await baseQuestionBankCallbacks.onDelete(bankId);
+          if (!isCurrentQuestionBankOperation(operation) || result?.cancelled) return;
+          questionBankState.statusKey = result?.success
+            ? "questionBankDeleted"
+            : "questionBankDeleteFailed";
+          if (result?.success) {
+            const refreshed = await refreshQuestionBanks(operation);
+            if (isCurrentQuestionBankOperation(operation) && !refreshed?.success) {
+              questionBankState.statusKey = "questionBankLoadFailed";
+            }
+          }
+        } catch (_error) {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.statusKey = "questionBankDeleteFailed";
+          }
+        } finally {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.loading = false;
+            renderQuestionBankManager();
+          }
+        }
       },
       async onRefresh() {
-        await refreshQuestionBanks();
+        const operation = beginQuestionBankOperation("");
+        if (operation === null) return;
         renderQuestionBankManager();
+        try {
+          const result = await refreshQuestionBanks(operation);
+          if (isCurrentQuestionBankOperation(operation) && !result?.success) {
+            questionBankState.statusKey = "questionBankLoadFailed";
+          }
+        } finally {
+          if (isCurrentQuestionBankOperation(operation)) {
+            questionBankState.loading = false;
+            renderQuestionBankManager();
+          }
+        }
       },
     };
 

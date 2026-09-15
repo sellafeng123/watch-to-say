@@ -15,6 +15,9 @@ const copy = {
   profileDaily: "Daily conversation",
   profileTravel: "Travel",
   profileGeneral: "General speaking",
+  profileLabel: ({ profile }) => ({ ielts: "IELTS", work: "Work", daily: "Daily conversation", travel: "Travel", general: "General speaking" })[profile],
+  partLabel: ({ part }) => ({ part1: "Part 1", part2: "Part 2", part3: "Part 3" })[part],
+  defaultBankName: "Speaking question bank",
   sourceText: "Questions to recognize",
   recognize: "Recognize question bank",
   profilesRequired: "Choose at least one profile.",
@@ -24,6 +27,7 @@ const copy = {
   partCount: ({ part, count }) => `${part}: ${count}`,
   sampleQuestions: "Sample questions",
   unrecognized: ({ count }) => `${count} unrecognized fragments`,
+  unrecognizedItems: "Unrecognized fragments to review",
   save: "Save question bank",
   savedBanks: "Saved question banks",
   rename: "Rename",
@@ -58,7 +62,7 @@ function managerState(overrides = {}) {
   };
 }
 
-function addOptionsPage(document) {
+function addOptionsPage(document, { languageButtons = false } = {}) {
   const ids = [
     ["form", "settingsForm"], ["input", "aiApiKey"], ["input", "supadataApiKey"],
     ["input", "obsidianVault"], ["input", "obsidianFolder"], ["textarea", "customizationPrompt"],
@@ -79,12 +83,17 @@ function addOptionsPage(document) {
     element.id = id;
     document.body.append(element);
   }
+  if (languageButtons) {
+    for (const language of ["en", "zh-CN"]) {
+      const button = document.createElement("button");
+      button.setAttribute("data-language", language);
+      document.body.append(button);
+    }
+  }
 }
 
 async function settle() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  await new Promise((resolve) => setImmediate(resolve));
 }
 
 test("requires a profile before recognizing and keeps the typed source after recognition failure", () => {
@@ -122,6 +131,19 @@ test("requires a profile before recognizing and keeps the typed source after rec
   assert.equal(root.querySelector("#questionBankSourceText").value, "My original pasted question");
 });
 
+test("gives an unnamed draft a deterministic safe bank name before recognition", () => {
+  const { root } = createFakeDom();
+  const received = [];
+  ui.mountManager({
+    root,
+    copy,
+    state: managerState({ draft: { name: "", profiles: ["daily"], sourceText: "What do you enjoy doing after work?" } }),
+    callbacks: { onRecognize: (draft) => received.push(draft) },
+  });
+  click(root.querySelector(".question-bank-recognize"));
+  assert.equal(received[0].name, "Speaking question bank");
+});
+
 test("shows only an explicit recognition preview before save and renders its summary", () => {
   const { root } = createFakeDom();
   ui.mountManager({ root, copy, state: managerState(), callbacks: {} });
@@ -130,9 +152,9 @@ test("shows only an explicit recognition preview before save and renders its sum
   ui.mountManager({ root, copy, state: managerState({ preview }), callbacks: {} });
   assert.match(root.querySelector(".question-bank-preview").textContent, /4 questions/);
   assert.match(root.querySelector(".question-bank-preview").textContent, /2 profiles/);
-  assert.match(root.querySelector(".question-bank-preview").textContent, /part1: 2/);
-  assert.match(root.querySelector(".question-bank-preview").textContent, /part2: 1/);
-  assert.match(root.querySelector(".question-bank-preview").textContent, /part3: 1/);
+  assert.match(root.querySelector(".question-bank-preview").textContent, /Part 1: 2/);
+  assert.match(root.querySelector(".question-bank-preview").textContent, /Part 2: 1/);
+  assert.match(root.querySelector(".question-bank-preview").textContent, /Part 3: 1/);
   assert.match(root.querySelector(".question-bank-preview").textContent, /1 unrecognized fragments/);
   assert.deepEqual(
     root.querySelectorAll(".question-bank-sample").map((node) => node.textContent),
@@ -141,12 +163,114 @@ test("shows only an explicit recognition preview before save and renders its sum
   assert.ok(root.querySelector(".question-bank-save"));
 });
 
+test("shows bounded unrecognized fragments as text for review", () => {
+  const { root } = createFakeDom();
+  ui.mountManager({
+    root,
+    copy,
+    state: managerState({ preview: { ...preview, unrecognized: ["<not a question>", "Topic heading"] } }),
+    callbacks: {},
+  });
+  assert.equal(root.querySelector(".question-bank-unrecognized-list").textContent, "<not a question>Topic heading");
+});
+
+test("localizes profile and IELTS Part metadata instead of leaking record identifiers", () => {
+  const chinese = createFakeDom();
+  const chineseCopy = {
+    ...copy,
+    profileLabel: ({ profile }) => ({ ielts: "雅思", work: "职场", daily: "日常聊天", travel: "旅行", general: "通用口语" })[profile],
+    partLabel: ({ part }) => ({ part1: "第一部分", part2: "第二部分", part3: "第三部分" })[part],
+  };
+  ui.mountManager({ root: chinese.root, copy: chineseCopy, state: managerState({ preview }), callbacks: {} });
+  assert.match(chinese.root.textContent, /第一部分: 2/);
+  assert.match(chinese.root.textContent, /日常聊天/);
+  assert.doesNotMatch(chinese.root.textContent, /part1|daily/);
+
+  const english = createFakeDom();
+  ui.mountManager({ root: english.root, copy, state: managerState({ preview }), callbacks: {} });
+  assert.match(english.root.textContent, /Part 1: 2/);
+  assert.match(english.root.textContent, /Daily conversation/);
+  assert.doesNotMatch(english.root.textContent, /part1|daily/);
+});
+
+test("options renders its real English and Chinese metadata copy", async () => {
+  async function render(language) {
+    const { document } = createFakeDom();
+    addOptionsPage(document, { languageButtons: true });
+    const root = {
+      document,
+      YTD_QUESTION_BANK_UI: ui,
+      YTD_SETTINGS: {
+        STORAGE_KEY: "settings",
+        migrateLegacyCustom: () => ({ migrated: false, settings: { aiApiKey: "", supadataApiKey: "", obsidianVault: "", obsidianFolder: "" } }),
+        normalize: (value) => value,
+      },
+      confirm: () => true,
+      chrome: {
+        storage: { local: {
+          get: async (key) => key === "ytd_options_language" ? { ytd_options_language: language } : {},
+          set: async () => {}, remove: async () => {}, clear: async () => {},
+        } },
+        runtime: { sendMessage: async (message) => {
+          if (message.action === "listQuestionBanks") {
+            return { success: true, banks: [{ id: "learner-7", name: "Existing bank", profiles: ["daily"], questionCount: 8 }] };
+          }
+          if (message.action === "previewQuestionBankImport") return { success: true, ...preview };
+          return { success: true };
+        } },
+      },
+    };
+    options.initialize(root);
+    await settle();
+    const manager = document.getElementById("questionBankManager");
+    input(manager.querySelector("#questionBankSourceText"), "How do you prepare for an important meeting?");
+    const daily = manager.querySelector('[data-profile="daily"]');
+    daily.checked = true;
+    click(manager.querySelector(".question-bank-recognize"));
+    await settle();
+    return document.getElementById("questionBankManager").textContent;
+  }
+
+  const english = await render("en");
+  assert.match(english, /Part 1: 2/);
+  assert.match(english, /Daily conversation/);
+  assert.doesNotMatch(english, /part1|daily/);
+
+  const chinese = await render("zh-CN");
+  assert.match(chinese, /第一部分: 2/);
+  assert.match(chinese, /日常聊天/);
+  assert.doesNotMatch(chinese, /part1|daily/);
+});
+
 test("exposes recognition loading through the accessible status region", () => {
   const { root } = createFakeDom();
   ui.mountManager({ root, copy, state: managerState({ loading: true, status: "Recognizing question bank…" }), callbacks: {} });
   assert.equal(root.querySelector(".question-bank-manager").getAttribute("aria-busy"), "true");
   assert.equal(root.querySelector(".question-bank-status").getAttribute("role"), "status");
   assert.equal(root.querySelector(".question-bank-recognize").disabled, true);
+});
+
+test("makes draft and learner-bank actions inert while a request is pending", () => {
+  const { root } = createFakeDom();
+  const calls = [];
+  ui.mountManager({
+    root,
+    copy,
+    state: managerState({ loading: true, preview }),
+    callbacks: {
+      onRecognize: () => calls.push("recognize"),
+      onSave: () => calls.push("save"),
+      onRename: () => calls.push("rename"),
+      onReplace: () => calls.push("replace"),
+      onDelete: () => calls.push("delete"),
+    },
+  });
+  const manager = root.querySelector(".question-bank-manager");
+  for (const element of manager.querySelectorAll("input").concat(manager.querySelectorAll("textarea"), manager.querySelectorAll("button"))) {
+    assert.equal(element.disabled, true, element.className || element.tagName);
+    click(element);
+  }
+  assert.deepEqual(calls, []);
 });
 
 test("rename, replace, and delete controls target the selected learner bank", () => {
@@ -266,4 +390,176 @@ test("options preserves a failed recognition draft, clears only after save, and 
   await settle();
   const recognition = messages.filter((message) => message.action === "previewQuestionBankImport").at(-1);
   assert.equal(recognition.request.replaceBankId, "learner-7");
+});
+
+test("options ignores duplicate recognition clicks and restores controls after a rejected message", async () => {
+  const { document } = createFakeDom();
+  addOptionsPage(document);
+  let rejectRecognition;
+  let recognitionCalls = 0;
+  const root = {
+    document,
+    YTD_QUESTION_BANK_UI: ui,
+    YTD_SETTINGS: {
+      STORAGE_KEY: "settings",
+      migrateLegacyCustom: () => ({ migrated: false, settings: { aiApiKey: "", supadataApiKey: "", obsidianVault: "", obsidianFolder: "" } }),
+      normalize: (value) => value,
+    },
+    confirm: () => true,
+    chrome: {
+      storage: { local: { get: async () => ({}), set: async () => {}, remove: async () => {}, clear: async () => {} } },
+      runtime: {
+        sendMessage: (message) => {
+          if (message.action === "listQuestionBanks") return Promise.resolve({ success: true, banks: [] });
+          if (message.action === "previewQuestionBankImport") {
+            recognitionCalls += 1;
+            return new Promise((_, reject) => { rejectRecognition = reject; });
+          }
+          return Promise.resolve({ success: true });
+        },
+      },
+    },
+  };
+  options.initialize(root);
+  await settle();
+  let manager = document.getElementById("questionBankManager");
+  input(manager.querySelector("#questionBankSourceText"), "A question for the race test?");
+  const daily = manager.querySelector('[data-profile="daily"]');
+  daily.checked = true;
+  const recognize = manager.querySelector(".question-bank-recognize");
+  click(recognize);
+  click(recognize);
+  await settle();
+  assert.equal(recognitionCalls, 1);
+  manager = document.getElementById("questionBankManager");
+  assert.equal(manager.querySelector("#questionBankSourceText").disabled, true);
+  rejectRecognition(new Error("offline"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  assert.equal(manager.querySelector("#questionBankSourceText").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /still here to edit/);
+});
+
+test("options restores nonbusy controls after save and saved-bank message rejections", async () => {
+  const { document } = createFakeDom();
+  addOptionsPage(document);
+  const root = {
+    document,
+    YTD_QUESTION_BANK_UI: ui,
+    YTD_SETTINGS: {
+      STORAGE_KEY: "settings",
+      migrateLegacyCustom: () => ({ migrated: false, settings: { aiApiKey: "", supadataApiKey: "", obsidianVault: "", obsidianFolder: "" } }),
+      normalize: (value) => value,
+    },
+    confirm: () => true,
+    chrome: {
+      storage: { local: { get: async () => ({}), set: async () => {}, remove: async () => {}, clear: async () => {} } },
+      runtime: { sendMessage: async (message) => {
+        if (message.action === "listQuestionBanks") {
+          return { success: true, banks: [{ id: "learner-7", name: "Existing bank", profiles: ["daily"], questionCount: 8 }] };
+        }
+        if (message.action === "previewQuestionBankImport") return { success: true, ...preview };
+        if (["saveQuestionBank", "renameQuestionBank", "deleteQuestionBank"].includes(message.action)) {
+          throw new Error("offline");
+        }
+        return { success: true };
+      } },
+    },
+  };
+  options.initialize(root);
+  await settle();
+  let manager = document.getElementById("questionBankManager");
+  input(manager.querySelector("#questionBankSourceText"), "How do you prepare for an important meeting?");
+  const daily = manager.querySelector('[data-profile="daily"]');
+  daily.checked = true;
+  click(manager.querySelector(".question-bank-recognize"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  click(manager.querySelector(".question-bank-save"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  assert.equal(manager.querySelector(".question-bank-save").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /Could not save/);
+
+  let row = manager.querySelector('[data-bank-id="learner-7"]');
+  click(row.querySelector(".question-bank-rename"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  row = manager.querySelector('[data-bank-id="learner-7"]');
+  assert.equal(row.querySelector(".question-bank-rename").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /Could not rename/);
+
+  click(row.querySelector(".question-bank-delete"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  row = manager.querySelector('[data-bank-id="learner-7"]');
+  assert.equal(row.querySelector(".question-bank-delete").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /Could not delete/);
+});
+
+test("options reports a rejected saved-bank refresh without staying busy", async () => {
+  const { document } = createFakeDom();
+  addOptionsPage(document);
+  const root = {
+    document,
+    YTD_QUESTION_BANK_UI: ui,
+    YTD_SETTINGS: {
+      STORAGE_KEY: "settings",
+      migrateLegacyCustom: () => ({ migrated: false, settings: { aiApiKey: "", supadataApiKey: "", obsidianVault: "", obsidianFolder: "" } }),
+      normalize: (value) => value,
+    },
+    confirm: () => true,
+    chrome: {
+      storage: { local: { get: async () => ({}), set: async () => {}, remove: async () => {}, clear: async () => {} } },
+      runtime: { sendMessage: async () => { throw new Error("offline"); } },
+    },
+  };
+  options.initialize(root);
+  await settle();
+  const manager = document.getElementById("questionBankManager");
+  assert.equal(manager.querySelector(".question-bank-recognize").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /Could not refresh/);
+});
+
+test("options surfaces a failed post-save refresh after saving succeeds", async () => {
+  const { document } = createFakeDom();
+  addOptionsPage(document);
+  let listCalls = 0;
+  const root = {
+    document,
+    YTD_QUESTION_BANK_UI: ui,
+    YTD_SETTINGS: {
+      STORAGE_KEY: "settings",
+      migrateLegacyCustom: () => ({ migrated: false, settings: { aiApiKey: "", supadataApiKey: "", obsidianVault: "", obsidianFolder: "" } }),
+      normalize: (value) => value,
+    },
+    confirm: () => true,
+    chrome: {
+      storage: { local: { get: async () => ({}), set: async () => {}, remove: async () => {}, clear: async () => {} } },
+      runtime: { sendMessage: async (message) => {
+        if (message.action === "listQuestionBanks") {
+          listCalls += 1;
+          if (listCalls > 1) throw new Error("offline");
+          return { success: true, banks: [] };
+        }
+        if (message.action === "previewQuestionBankImport") return { success: true, ...preview };
+        if (message.action === "saveQuestionBank") return { success: true };
+        return { success: true };
+      } },
+    },
+  };
+  options.initialize(root);
+  await settle();
+  let manager = document.getElementById("questionBankManager");
+  input(manager.querySelector("#questionBankSourceText"), "How do you prepare for an important meeting?");
+  const daily = manager.querySelector('[data-profile="daily"]');
+  daily.checked = true;
+  click(manager.querySelector(".question-bank-recognize"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  click(manager.querySelector(".question-bank-save"));
+  await settle();
+  manager = document.getElementById("questionBankManager");
+  assert.equal(manager.querySelector(".question-bank-recognize").disabled, false);
+  assert.match(manager.querySelector(".question-bank-status").textContent, /Could not refresh/);
 });

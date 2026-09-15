@@ -18,9 +18,9 @@ const YTD_QUESTION_BANK_UI = (() => {
     }, {});
   }
 
-  function readDraft(form, fallback) {
+  function readDraft(form, fallback, copy = {}) {
     return {
-      name: form.querySelector("#questionBankName")?.value.trim() || "",
+      name: form.querySelector("#questionBankName")?.value.trim() || copy.defaultBankName || "Learner question bank",
       profiles: PROFILES.filter((profile) =>
         form.querySelector(`[data-profile="${profile}"]`)?.checked,
       ),
@@ -29,7 +29,8 @@ const YTD_QUESTION_BANK_UI = (() => {
     };
   }
 
-  function appendPreview(documentRef, manager, copy, preview, callbacks) {
+  function appendPreview(documentRef, manager, copy, state, callbacks) {
+    const preview = state.preview;
     if (!preview?.previewToken) return;
     const section = el(documentRef, "section", "question-bank-preview");
     section.setAttribute("aria-labelledby", "questionBankPreviewTitle");
@@ -47,7 +48,10 @@ const YTD_QUESTION_BANK_UI = (() => {
     if (parts.length) {
       const partList = el(documentRef, "p", "question-bank-part-counts");
       for (const [part, count] of parts) {
-        partList.append(el(documentRef, "span", "question-bank-metric", copy.partCount({ part, count })));
+        partList.append(el(documentRef, "span", "question-bank-metric", copy.partCount({
+          part: copy.partLabel?.({ part }) || part,
+          count,
+        })));
       }
       section.append(partList);
     }
@@ -58,9 +62,20 @@ const YTD_QUESTION_BANK_UI = (() => {
     }
     section.append(samples);
     section.append(el(documentRef, "p", "question-bank-unrecognized", copy.unrecognized({ count: preview.unrecognized?.length || 0 })));
+    if (preview.unrecognized?.length) {
+      section.append(el(documentRef, "h4", "question-bank-samples-heading", copy.unrecognizedItems));
+      const unrecognized = el(documentRef, "ul", "question-bank-unrecognized-list");
+      for (const fragment of preview.unrecognized) {
+        unrecognized.append(el(documentRef, "li", "question-bank-unrecognized-item", fragment));
+      }
+      section.append(unrecognized);
+    }
     const save = el(documentRef, "button", "primary question-bank-save", copy.save);
     save.type = "button";
-    save.addEventListener("click", () => callbacks.onSave?.(preview.previewToken));
+    save.disabled = !!state.loading;
+    save.addEventListener("click", () => {
+      if (!state.loading) callbacks.onSave?.(preview.previewToken);
+    });
     section.append(save);
     manager.append(section);
   }
@@ -82,15 +97,28 @@ const YTD_QUESTION_BANK_UI = (() => {
       name.type = "text";
       name.value = bank.name || "";
       name.setAttribute("aria-label", copy.bankName);
-      const meta = el(documentRef, "p", "question-bank-bank-meta", `${copy.questionCount({ count: bank.questionCount || 0 })} · ${(bank.profiles || []).join(", ")}`);
+      const profiles = (bank.profiles || []).map((profile) =>
+        copy.profileLabel?.({ profile }) || profile,
+      );
+      const meta = el(documentRef, "p", "question-bank-bank-meta", `${copy.questionCount({ count: bank.questionCount || 0 })} · ${profiles.join(", ")}`);
       const actions = el(documentRef, "div", "question-bank-bank-actions");
       const rename = el(documentRef, "button", "question-bank-rename", copy.rename);
       const replace = el(documentRef, "button", "question-bank-replace", copy.replace);
       const remove = el(documentRef, "button", "danger question-bank-delete", copy.delete);
-      for (const button of [rename, replace, remove]) button.type = "button";
-      rename.addEventListener("click", () => callbacks.onRename?.(bank.id, name.value));
-      replace.addEventListener("click", () => callbacks.onReplace?.(bank.id));
-      remove.addEventListener("click", () => callbacks.onDelete?.(bank.id));
+      name.disabled = !!state.loading;
+      for (const button of [rename, replace, remove]) {
+        button.type = "button";
+        button.disabled = !!state.loading;
+      }
+      rename.addEventListener("click", () => {
+        if (!state.loading) callbacks.onRename?.(bank.id, name.value);
+      });
+      replace.addEventListener("click", () => {
+        if (!state.loading) callbacks.onReplace?.(bank.id);
+      });
+      remove.addEventListener("click", () => {
+        if (!state.loading) callbacks.onDelete?.(bank.id);
+      });
       actions.append(rename, replace, remove);
       row.append(name, meta, actions);
       list.append(row);
@@ -116,6 +144,7 @@ const YTD_QUESTION_BANK_UI = (() => {
     name.type = "text";
     name.maxLength = 120;
     name.value = draft.name || "";
+    name.disabled = !!state.loading;
     nameLabel.append(name);
     form.append(nameLabel);
     const profiles = el(documentRef, "fieldset", "question-bank-profiles");
@@ -126,6 +155,7 @@ const YTD_QUESTION_BANK_UI = (() => {
       input.type = "checkbox";
       input.setAttribute("data-profile", profile);
       input.checked = (draft.profiles || []).includes(profile);
+      input.disabled = !!state.loading;
       label.append(input);
       profiles.append(label);
     }
@@ -137,6 +167,7 @@ const YTD_QUESTION_BANK_UI = (() => {
     source.value = draft.sourceText || "";
     source.maxLength = 80000;
     source.rows = 8;
+    source.disabled = !!state.loading;
     sourceLabel.append(source);
     form.append(sourceLabel);
     const status = el(documentRef, "p", "question-bank-status", state.status || "");
@@ -147,7 +178,8 @@ const YTD_QUESTION_BANK_UI = (() => {
     recognize.disabled = !!state.loading;
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const nextDraft = readDraft(form, draft);
+      if (state.loading) return;
+      const nextDraft = readDraft(form, draft, copy);
       if (!nextDraft.profiles.length) {
         status.textContent = copy.profilesRequired;
         return;
@@ -156,7 +188,7 @@ const YTD_QUESTION_BANK_UI = (() => {
     });
     form.append(recognize, status);
     manager.append(form);
-    appendPreview(documentRef, manager, copy, state.preview, callbacks);
+    appendPreview(documentRef, manager, copy, state, callbacks);
     appendSavedBanks(documentRef, manager, copy, state, callbacks);
     root.append(manager);
     return manager;
