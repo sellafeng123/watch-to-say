@@ -403,12 +403,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "savePracticeHighlight") {
-    savePracticeHighlight(message.entry).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    savePracticeHighlight(message.entry)
+      .then((result) => {
+        sendResponse(result);
+        if (result?.success) {
+          chrome.runtime.sendMessage({
+            action: "practiceHighlightSaved",
+            videoId: message.entry?.videoId,
+          }).catch(() => {});
+        }
+      })
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
   if (message.action === "getPracticeHighlights") {
     getPracticeHighlights(message.videoId).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "getPracticeMaterials") {
+    handlePracticeMaterials(message.request).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
@@ -951,6 +966,8 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
       return { id, internalization, speaking };
     })
     .filter(Boolean);
+  const returnedIds = new Set(items.map((item) => item.id));
+  if (items.length !== allowedIds.size || returnedIds.size !== allowedIds.size) return null;
   const synthesisIds = (Array.isArray(parsed.synthesis?.itemIds) ? parsed.synthesis.itemIds : [])
     .filter((id) => allowedIds.has(id))
     .slice(0, 3);
@@ -963,6 +980,46 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
       ? { itemIds: synthesisIds, question: synthesisQuestion, reference: synthesisReference }
       : null,
   };
+}
+
+async function handlePracticeMaterials(request) {
+  const profile = Object.hasOwn(YTD_PRACTICE.PROFILES, request?.profile) ? request.profile : "ielts";
+  const highlights = YTD_PRACTICE.mergePracticeHighlights(request?.highlights).slice(0, 30);
+  if (!highlights.length) return { success: false, error: "NO_PRACTICE_ITEMS" };
+  const settings = await getSettings();
+  if (!settings.aiApiKey) {
+    return { success: false, error: "NO_AI_KEY", message: "DeepSeek API key not configured." };
+  }
+  const expressions = highlights.map((item) => ({
+    id: item.id,
+    expression: item.expression,
+    kind: item.kind,
+    partOfSpeech: item.partOfSpeech,
+    usageContexts: item.usageContexts,
+    originalExamples: item.anchors.slice(0, 3).map((anchor) => anchor.context || anchor.selectedText),
+  }));
+  try {
+    const variables = {
+      profile: YTD_PRACTICE.PROFILES[profile],
+      videoTitle: practiceMaterialText(request?.videoTitle, 500) || "Unknown",
+      expressionsJson: JSON.stringify(expressions),
+    };
+    const systemPrompt = await loadPromptSection("expression-practice.md", "System prompt", variables);
+    const userPrompt = await loadPromptSection("expression-practice.md", "User prompt", variables);
+    const { text } = await requestAiCompletion({
+      temperature: 0.3,
+      maxTokens: Math.min(5000, 500 + highlights.length * 320),
+      responseFormat: { type: "json_object" },
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+    });
+    const materials = validatePracticeMaterials(text, highlights.map((item) => item.id));
+    if (!materials || materials.items.length !== highlights.length) {
+      return { success: false, error: "INVALID_AI_RESPONSE", message: "练习材料不完整，请重试。" };
+    }
+    return { success: true, materials };
+  } catch (error) {
+    return { success: false, error: error.code || error.message || "PRACTICE_MATERIALS_FAILED", message: "暂时无法生成练习材料，请重试。" };
+  }
 }
 
 // ============================================================
@@ -2066,4 +2123,5 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   savePracticeHighlight,
   getPracticeHighlights,
   validatePracticeMaterials,
+  handlePracticeMaterials,
 };

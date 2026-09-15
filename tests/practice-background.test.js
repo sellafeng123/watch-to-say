@@ -126,3 +126,27 @@ test("keeps AI practice materials bounded to the learner-selected highlight IDs"
     synthesis: null,
   });
 });
+
+test("rejects duplicate AI items that leave a selected expression without practice material", () => {
+  const { helpers } = loadPracticeHelpers();
+  const repeated = {
+    id: "practice-a",
+    internalization: { promptZh: "替换场景。", reference: "I get into the zone." },
+    speaking: { question: "How do you focus?", reference: "I get into the zone." },
+  };
+  assert.equal(helpers.validatePracticeMaterials({
+    label: "AI 练习材料",
+    items: [repeated, repeated],
+    synthesis: null,
+  }, ["practice-a", "practice-b"]), null);
+});
+
+test("practice material generation refuses to run without a configured DeepSeek key", async () => {
+  const { helpers } = loadPracticeHelpers({ ytd_settings: { aiApiKey: "" } });
+  const result = await helpers.handlePracticeMaterials({
+    profile: "ielts",
+    highlights: [{ ...entry(), id: "practice-a", anchors: [{ ...entry() }] }],
+  });
+  assert.equal(result.success, false);
+  assert.equal(result.error, "NO_AI_KEY");
+});

@@ -15,6 +15,14 @@ YouTube Digest is a bring-your-own-key project installed locally from GitHub. It
 
 ![YouTube Digest demo](YouTube%20Digest%20demo.png)
 
+## New in v2.0.0
+
+- Start **本期表达练习** from the top of Transcript and choose any saved highlights from the current video.
+- Move through listening recall, contextual internalization, and speaking output in a fixed learning sequence.
+- Speak first, reveal the reference answer, then self-rate each step as **我会** or **还不会**.
+- Advance only after mastering the preceding stage, with missed tasks collected into one final retry pass.
+- Generate profile-aware practice for IELTS speaking, work, daily conversation, or travel with DeepSeek and the original sentence context.
+
 ## New in v1.2.0
 
 - Search transcript words or phrases and move through every match.

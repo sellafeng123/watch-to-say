@@ -78,6 +78,7 @@ test("Transcript shows a practice entry and safely emphasizes saved expressions"
   assert.match(source, /function renderPracticeTranscriptMarkup\(text, highlights\)/);
   assert.match(source, /class="practice-highlight"/);
   assert.match(source, /function refreshPracticeHighlights\(\)[\s\S]*?action: "getPracticeHighlights"/);
+  assert.match(source, /message\.action === "practiceHighlightSaved"[\s\S]*?refreshPracticeHighlights\(\)[\s\S]*?renderTranscript\(\)/);
 });
 
 test("leaving Transcript dismisses its selection actions", () => {

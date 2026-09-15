@@ -46,6 +46,8 @@ let interfaceTranslationFailures = new Set();
 let currentNotes = [];
 let currentNotesFilterVideoId = null;
 let currentPracticeHighlights = [];
+let practiceRuntime = null;
+const PRACTICE_STAGES = ["listening", "internalization", "speaking"];
 const TRANSLATION_MESSAGE_TIMEOUT_MS = 130_000;
 const TRANSLATION_BATCH_SIZE = 3;
 
@@ -293,6 +295,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     loadNotes(filterAll ? null : currentVideoId);
     sendResponse({ success: true });
   }
+  if (message.action === "practiceHighlightSaved" && message.videoId === currentVideoId) {
+    refreshPracticeHighlights()
+      .then(() => renderTranscript())
+      .catch(() => {});
+    sendResponse({ success: true });
+  }
   return false;
 });
 
@@ -428,6 +436,10 @@ function setupEventListeners() {
     });
   });
   setupTranscriptSearch();
+
+  document
+    .getElementById("startPracticeBtn")
+    ?.addEventListener("click", openPracticeSetup);
 
   // pagehide also covers closing the side panel without a tab change.
   window.addEventListener("pagehide", () => {
@@ -1148,6 +1160,212 @@ async function refreshPracticeHighlights() {
     currentPracticeHighlights = [];
   }
   updatePracticeStartButton();
+}
+
+function getPracticeModalElements() {
+  return {
+    overlay: document.getElementById("practiceModal"),
+    root: document.getElementById("practiceModalContent"),
+  };
+}
+
+function showPracticeModal() {
+  const { overlay } = getPracticeModalElements();
+  if (!overlay) return;
+  overlay.hidden = false;
+  document.body.classList.add("practice-modal-open");
+}
+
+function closePracticeModal() {
+  const { overlay, root } = getPracticeModalElements();
+  if (overlay) overlay.hidden = true;
+  root?.replaceChildren();
+  document.body.classList.remove("practice-modal-open");
+  practiceRuntime = null;
+}
+
+function practiceItemsForStage(session, stage) {
+  return (session?.items || []).filter((item) => {
+    if (!session.selectedItemIds?.includes(item.id)) return false;
+    if (stage === "listening") return true;
+    if (stage === "internalization") return item.stages.listening === "mastered";
+    return item.stages.internalization === "mastered";
+  });
+}
+
+function practiceMaterialFor(itemId) {
+  return practiceRuntime?.materials?.items?.find((item) => item.id === itemId) || null;
+}
+
+function renderPracticeError(message) {
+  const { root } = getPracticeModalElements();
+  if (!root) return;
+  root.replaceChildren();
+  const card = document.createElement("section");
+  card.className = "practice-card practice-error";
+  const title = document.createElement("h2");
+  title.className = "practice-title";
+  title.textContent = "练习材料准备失败";
+  const copy = document.createElement("p");
+  copy.className = "practice-help";
+  copy.textContent = message || "暂时无法生成练习材料，请稍后重试。";
+  const actions = document.createElement("div");
+  actions.className = "practice-actions";
+  const cancel = document.createElement("button");
+  cancel.className = "practice-secondary";
+  cancel.type = "button";
+  cancel.textContent = "关闭";
+  cancel.addEventListener("click", closePracticeModal);
+  const retry = document.createElement("button");
+  retry.className = "practice-primary";
+  retry.type = "button";
+  retry.textContent = "重新选择";
+  retry.addEventListener("click", openPracticeSetup);
+  actions.append(cancel, retry);
+  card.append(title, copy, actions);
+  root.append(card);
+}
+
+function openPracticeSetup() {
+  const { root } = getPracticeModalElements();
+  if (!root || !currentPracticeHighlights.length) return;
+  showPracticeModal();
+  YTD_PRACTICE_UI.mountSetup({
+    root,
+    highlights: currentPracticeHighlights,
+    onCancel: closePracticeModal,
+    onStart: startPracticeSession,
+  });
+}
+
+async function startPracticeSession({ selectedIds, profile }) {
+  const selectedHighlights = currentPracticeHighlights.filter((item) => selectedIds.includes(item.id));
+  const session = YTD_PRACTICE.createSession({
+    video: { id: currentVideoId, title: currentVideoTitle },
+    highlights: selectedHighlights,
+    profile,
+  });
+  const { root } = getPracticeModalElements();
+  if (!root || !session.items.length) return;
+  practiceRuntime = {
+    session,
+    materials: null,
+    stageIndex: 0,
+    queue: [],
+    queueIndex: 0,
+    retryTasks: null,
+    retryIndex: 0,
+  };
+  YTD_PRACTICE_UI.mountLoading({ root });
+  try {
+    const result = await chrome.runtime.sendMessage({
+      action: "getPracticeMaterials",
+      request: { profile, videoTitle: currentVideoTitle, highlights: selectedHighlights },
+    });
+    if (!result?.success) {
+      renderPracticeError(result?.message || "请检查 DeepSeek 设置后重试。");
+      return;
+    }
+    practiceRuntime.materials = result.materials;
+    beginPracticeStage(0);
+  } catch (error) {
+    renderPracticeError(error?.message);
+  }
+}
+
+function beginPracticeStage(stageIndex) {
+  if (!practiceRuntime) return;
+  if (stageIndex >= PRACTICE_STAGES.length) {
+    beginPracticeRetries();
+    return;
+  }
+  const stage = PRACTICE_STAGES[stageIndex];
+  practiceRuntime.stageIndex = stageIndex;
+  practiceRuntime.queue = practiceItemsForStage(practiceRuntime.session, stage);
+  practiceRuntime.queueIndex = 0;
+  if (!practiceRuntime.queue.length) {
+    beginPracticeStage(stageIndex + 1);
+    return;
+  }
+  renderCurrentPracticeTask();
+}
+
+function beginPracticeRetries() {
+  if (!practiceRuntime) return;
+  practiceRuntime.retryTasks = YTD_PRACTICE.nextRetryTasks(practiceRuntime.session);
+  practiceRuntime.retryIndex = 0;
+  if (!practiceRuntime.retryTasks.length) {
+    renderPracticeSummary();
+    return;
+  }
+  renderCurrentPracticeTask();
+}
+
+function renderCurrentPracticeTask() {
+  if (!practiceRuntime) return;
+  const { root } = getPracticeModalElements();
+  if (!root) return;
+  const isRetry = Array.isArray(practiceRuntime.retryTasks);
+  const task = isRetry
+    ? practiceRuntime.retryTasks[practiceRuntime.retryIndex]
+    : null;
+  const stage = task?.stage || PRACTICE_STAGES[practiceRuntime.stageIndex];
+  const item = task
+    ? practiceRuntime.session.items.find((candidate) => candidate.id === task.itemId)
+    : practiceRuntime.queue[practiceRuntime.queueIndex];
+  const total = isRetry ? practiceRuntime.retryTasks.length : practiceRuntime.queue.length;
+  const position = (isRetry ? practiceRuntime.retryIndex : practiceRuntime.queueIndex) + 1;
+  if (!item) {
+    isRetry ? renderPracticeSummary() : beginPracticeStage(practiceRuntime.stageIndex + 1);
+    return;
+  }
+  YTD_PRACTICE_UI.mountStage({
+    root,
+    stage,
+    item,
+    material: practiceMaterialFor(item.id),
+    position,
+    total,
+    isRetry,
+    onSeek: seekTo,
+    onExit: closePracticeModal,
+    onRate: (rating) => rateCurrentPracticeTask({ itemId: item.id, stage, rating, isRetry }),
+  });
+}
+
+function rateCurrentPracticeTask({ itemId, stage, rating, isRetry }) {
+  if (!practiceRuntime) return;
+  const nextSession = YTD_PRACTICE.rateStage(practiceRuntime.session, {
+    itemId,
+    stage,
+    rating,
+    retry: isRetry,
+  });
+  if (!nextSession) return;
+  practiceRuntime.session = nextSession;
+  if (isRetry) {
+    practiceRuntime.retryIndex += 1;
+    if (practiceRuntime.retryIndex >= practiceRuntime.retryTasks.length) renderPracticeSummary();
+    else renderCurrentPracticeTask();
+    return;
+  }
+  practiceRuntime.queueIndex += 1;
+  if (practiceRuntime.queueIndex >= practiceRuntime.queue.length) {
+    beginPracticeStage(practiceRuntime.stageIndex + 1);
+  } else {
+    renderCurrentPracticeTask();
+  }
+}
+
+function renderPracticeSummary() {
+  if (!practiceRuntime) return;
+  const { root } = getPracticeModalElements();
+  if (!root) return;
+  YTD_PRACTICE_UI.mountSummary({
+    root,
+    session: practiceRuntime.session,
+    onClose: closePracticeModal,
+  });
 }
 
 // ============================================================

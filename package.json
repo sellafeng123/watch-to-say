@@ -1,8 +1,8 @@
 {
   "name": "youtube-digest",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Turn YouTube videos into learning resources with transcripts, bilingual translation, AI overviews, and notes.",
+  "description": "Turn YouTube videos into a context-first English speaking corpus and guided practice flow.",
   "license": "MIT",
   "scripts": {
     "test": "node --test tests/*.test.js",
