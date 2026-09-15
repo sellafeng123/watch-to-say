@@ -53,6 +53,45 @@ const YTD_OPTIONS = (() => {
       customizationPrompt:
         "Customize this local YouTube Digest workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is YouTube Digest. If verification fails, stop and ask me to open the extracted YouTube Digest project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.",
       copyCustomizationPrompt: "Copy edited prompt",
+      questionBankTitle: "Speaking question banks",
+      questionBankHelp:
+        "Paste questions, recognize the structure, then review it before saving. Your original paste is discarded after a successful save.",
+      questionBankName: "Bank name",
+      questionBankProfiles: "Use with",
+      questionBankProfileIelts: "IELTS",
+      questionBankProfileWork: "Work",
+      questionBankProfileDaily: "Daily conversation",
+      questionBankProfileTravel: "Travel",
+      questionBankProfileGeneral: "General speaking",
+      questionBankSourceText: "Questions to recognize",
+      questionBankRecognize: "Recognize question bank",
+      questionBankProfilesRequired: "Choose at least one profile.",
+      questionBankRecognizing: "Recognizing question bank…",
+      questionBankRecognitionFailed:
+        "Could not recognize this question bank. Your pasted text is still here to edit.",
+      questionBankPreviewReady: "Review the recognition preview, then save it when it looks right.",
+      questionBankPreviewTitle: "Recognition preview",
+      questionBankQuestionCount: ({ count }) => `${count} questions`,
+      questionBankProfileCount: ({ count }) => `${count} profiles`,
+      questionBankPartCount: ({ part, count }) => `${part}: ${count}`,
+      questionBankSampleQuestions: "Sample questions",
+      questionBankUnrecognized: ({ count }) => `${count} unrecognized fragments`,
+      questionBankSave: "Save question bank",
+      questionBankSaving: "Saving question bank…",
+      questionBankSaved: "Question bank saved.",
+      questionBankSaveFailed: "Could not save this question bank. Review the preview and try again.",
+      questionBankSavedBanks: "Saved question banks",
+      questionBankNoBanks: "No saved question banks yet.",
+      questionBankRename: "Rename",
+      questionBankReplace: "Replace questions",
+      questionBankDelete: "Delete",
+      questionBankRenamed: "Question bank renamed.",
+      questionBankRenameFailed: "Could not rename this question bank.",
+      questionBankReplacing:
+        "Paste replacement questions and recognize them before saving. The saved bank is unchanged until then.",
+      questionBankDeleted: "Question bank deleted.",
+      questionBankDeleteFailed: "Could not delete this question bank.",
+      questionBankDeleteConfirm: "Delete this question bank? This cannot be undone.",
       localData: "Local data",
       localDataHelp:
         "Digests, translations, and notes are stored only in this Chrome profile. You can remove them at any time.",
@@ -128,6 +167,43 @@ const YTD_OPTIONS = (() => {
       customizationPrompt:
         "请把当前本地 YouTube Digest 工作区改为使用 [PROVIDER] 提供的 [MODEL]。只在当前工作区中操作。编辑前，先确认其中包含 manifest.json，且 manifest 中的 name 是 YouTube Digest。如果验证失败，请停止，并让我在编程 Agent 中打开 YouTube Digest 解压后的项目文件夹。不要搜索其他文件夹，不要编辑猜测的副本，不要假设安装路径，也不要声称 Chrome 可以显示操作系统中的绝对源码路径。更新该服务的 API endpoint、请求格式和最少的 Chrome host permissions。保留用户自带密钥模式和 Chrome 本地存储。不要把 API 密钥写入源代码、提交记录、日志、截图、这段提示词或聊天；代码准备好后，请告诉我应该在哪里自行填写密钥。DeepSeek 专用的请求参数和重试逻辑继续只用于 DeepSeek。新服务的专属规则请单独处理，避免相互影响。更新 README.md、README.zh-CN.md、PRIVACY.md、SECURITY.md 和测试。运行 npm test、npm run check 和 npm run package。最后，说明如何重新加载已解压的扩展，并在真实 YouTube 视频上测试。",
       copyCustomizationPrompt: "复制编辑后的提示词",
+      questionBankTitle: "口语题库",
+      questionBankHelp:
+        "粘贴题目后先识别结构，再检查预览并保存。保存成功后，原始粘贴内容会被丢弃。",
+      questionBankName: "题库名称",
+      questionBankProfiles: "适用场景",
+      questionBankProfileIelts: "雅思",
+      questionBankProfileWork: "职场",
+      questionBankProfileDaily: "日常聊天",
+      questionBankProfileTravel: "旅行",
+      questionBankProfileGeneral: "通用口语",
+      questionBankSourceText: "待识别题目",
+      questionBankRecognize: "识别题库",
+      questionBankProfilesRequired: "请至少选择一个适用场景。",
+      questionBankRecognizing: "正在识别题库…",
+      questionBankRecognitionFailed: "题库识别失败。粘贴的内容仍保留在这里，可以继续修改。",
+      questionBankPreviewReady: "请检查识别预览，确认无误后再保存。",
+      questionBankPreviewTitle: "识别预览",
+      questionBankQuestionCount: ({ count }) => `${count} 道题目`,
+      questionBankProfileCount: ({ count }) => `${count} 个场景`,
+      questionBankPartCount: ({ part, count }) => `${part}: ${count}`,
+      questionBankSampleQuestions: "题目示例",
+      questionBankUnrecognized: ({ count }) => `${count} 段未识别内容`,
+      questionBankSave: "保存题库",
+      questionBankSaving: "正在保存题库…",
+      questionBankSaved: "题库已保存。",
+      questionBankSaveFailed: "无法保存题库。请检查预览后重试。",
+      questionBankSavedBanks: "已保存题库",
+      questionBankNoBanks: "还没有已保存的题库。",
+      questionBankRename: "重命名",
+      questionBankReplace: "替换题目",
+      questionBankDelete: "删除",
+      questionBankRenamed: "题库已重命名。",
+      questionBankRenameFailed: "无法重命名题库。",
+      questionBankReplacing: "请粘贴替换题目并重新识别。完成保存前，原题库不会被修改。",
+      questionBankDeleted: "题库已删除。",
+      questionBankDeleteFailed: "无法删除题库。",
+      questionBankDeleteConfirm: "要删除这个题库吗？此操作无法撤销。",
       localData: "本地数据",
       localDataHelp:
         "摘要、翻译和笔记仅保存在当前 Chrome 个人资料中。你可以随时删除。",
@@ -344,6 +420,23 @@ const YTD_OPTIONS = (() => {
     await clipboard.writeText(value);
   }
 
+  function createQuestionBankCallbacks({ request, confirm, copy }) {
+    const send = (action, requestData = {}) => request({
+      action,
+      request: requestData,
+    });
+    return {
+      onRecognize: (draft) => send("previewQuestionBankImport", draft),
+      onSave: (previewToken) => send("saveQuestionBank", { previewToken }),
+      onRename: (bankId, name) => send("renameQuestionBank", { bankId, name }),
+      onDelete: async (bankId) => {
+        if (!confirm(copy.deleteConfirm)) return { cancelled: true };
+        return send("deleteQuestionBank", { bankId });
+      },
+      onRefresh: () => send("listQuestionBanks"),
+    };
+  }
+
   function getSafeLocalStorage(root) {
     try {
       return root.localStorage;
@@ -373,10 +466,150 @@ const YTD_OPTIONS = (() => {
     const copyStatus = doc.getElementById("copyStatus");
     const saveStatus = doc.getElementById("saveStatus");
     const dataStatus = doc.getElementById("dataStatus");
+    const questionBankRoot = doc.getElementById("questionBankManager");
     const languageButtons = [...doc.querySelectorAll("[data-language]")];
     const statusStates = new Map();
     const promptDrafts = createPromptDrafts();
     let currentLanguage = "en";
+    const questionBankState = {
+      draft: { name: "", profiles: [], sourceText: "", replaceBankId: null },
+      preview: null,
+      banks: [],
+      loading: false,
+      statusKey: "",
+    };
+
+    function questionBankCopy() {
+      return {
+        title: translate(currentLanguage, "questionBankTitle"),
+        help: translate(currentLanguage, "questionBankHelp"),
+        bankName: translate(currentLanguage, "questionBankName"),
+        profiles: translate(currentLanguage, "questionBankProfiles"),
+        profileIelts: translate(currentLanguage, "questionBankProfileIelts"),
+        profileWork: translate(currentLanguage, "questionBankProfileWork"),
+        profileDaily: translate(currentLanguage, "questionBankProfileDaily"),
+        profileTravel: translate(currentLanguage, "questionBankProfileTravel"),
+        profileGeneral: translate(currentLanguage, "questionBankProfileGeneral"),
+        sourceText: translate(currentLanguage, "questionBankSourceText"),
+        recognize: translate(currentLanguage, "questionBankRecognize"),
+        profilesRequired: translate(currentLanguage, "questionBankProfilesRequired"),
+        previewTitle: translate(currentLanguage, "questionBankPreviewTitle"),
+        questionCount: (params) => translate(currentLanguage, "questionBankQuestionCount", params),
+        profileCount: (params) => translate(currentLanguage, "questionBankProfileCount", params),
+        partCount: (params) => translate(currentLanguage, "questionBankPartCount", params),
+        sampleQuestions: translate(currentLanguage, "questionBankSampleQuestions"),
+        unrecognized: (params) => translate(currentLanguage, "questionBankUnrecognized", params),
+        save: translate(currentLanguage, "questionBankSave"),
+        savedBanks: translate(currentLanguage, "questionBankSavedBanks"),
+        rename: translate(currentLanguage, "questionBankRename"),
+        replace: translate(currentLanguage, "questionBankReplace"),
+        delete: translate(currentLanguage, "questionBankDelete"),
+        noBanks: translate(currentLanguage, "questionBankNoBanks"),
+        deleteConfirm: translate(currentLanguage, "questionBankDeleteConfirm"),
+      };
+    }
+
+    function requestQuestionBank(message) {
+      if (!root.chrome?.runtime?.sendMessage) {
+        return Promise.resolve({ success: false, error: "QUESTION_BANK_UNAVAILABLE" });
+      }
+      return root.chrome.runtime.sendMessage(message);
+    }
+
+    function renderQuestionBankManager() {
+      if (!questionBankRoot || !root.YTD_QUESTION_BANK_UI) return;
+      root.YTD_QUESTION_BANK_UI.mountManager({
+        root: questionBankRoot,
+        copy: questionBankCopy(),
+        state: {
+          ...questionBankState,
+          status: questionBankState.statusKey
+            ? translate(currentLanguage, questionBankState.statusKey)
+            : "",
+        },
+        callbacks: questionBankCallbacks,
+      });
+    }
+
+    async function refreshQuestionBanks() {
+      const result = await requestQuestionBank({ action: "listQuestionBanks" });
+      if (result?.success) questionBankState.banks = result.banks || [];
+      return result;
+    }
+
+    const baseQuestionBankCallbacks = createQuestionBankCallbacks({
+      request: requestQuestionBank,
+      confirm: () => root.confirm(
+        translate(currentLanguage, "questionBankDeleteConfirm"),
+      ),
+      copy: { deleteConfirm: "" },
+    });
+    const questionBankCallbacks = {
+      async onRecognize(draft) {
+        questionBankState.draft = draft;
+        questionBankState.preview = null;
+        questionBankState.loading = true;
+        questionBankState.statusKey = "questionBankRecognizing";
+        renderQuestionBankManager();
+        const result = await baseQuestionBankCallbacks.onRecognize(draft);
+        questionBankState.loading = false;
+        questionBankState.preview = result?.success ? result : null;
+        questionBankState.statusKey = result?.success
+          ? "questionBankPreviewReady"
+          : "questionBankRecognitionFailed";
+        renderQuestionBankManager();
+      },
+      async onSave(previewToken) {
+        questionBankState.loading = true;
+        questionBankState.statusKey = "questionBankSaving";
+        renderQuestionBankManager();
+        const result = await baseQuestionBankCallbacks.onSave(previewToken);
+        questionBankState.loading = false;
+        if (result?.success) {
+          questionBankState.draft = { name: "", profiles: [], sourceText: "", replaceBankId: null };
+          questionBankState.preview = null;
+          questionBankState.statusKey = "questionBankSaved";
+          await refreshQuestionBanks();
+        } else {
+          questionBankState.statusKey = "questionBankSaveFailed";
+        }
+        renderQuestionBankManager();
+      },
+      async onRename(bankId, name) {
+        const result = await baseQuestionBankCallbacks.onRename(bankId, name);
+        questionBankState.statusKey = result?.success
+          ? "questionBankRenamed"
+          : "questionBankRenameFailed";
+        if (result?.success) await refreshQuestionBanks();
+        renderQuestionBankManager();
+      },
+      onReplace(bankId) {
+        const bank = questionBankState.banks.find((candidate) => candidate.id === bankId);
+        if (!bank) return;
+        questionBankState.draft = {
+          name: bank.name || "",
+          profiles: [...(bank.profiles || [])],
+          sourceText: "",
+          replaceBankId: bank.id,
+        };
+        questionBankState.preview = null;
+        questionBankState.statusKey = "questionBankReplacing";
+        renderQuestionBankManager();
+      },
+      async onDelete(bankId) {
+        const result = await baseQuestionBankCallbacks.onDelete(bankId);
+        if (result?.cancelled) return;
+        questionBankState.statusKey = result?.success
+          ? "questionBankDeleted"
+          : "questionBankDeleteFailed";
+        if (result?.success) await refreshQuestionBanks();
+        renderQuestionBankManager();
+      },
+      async onRefresh() {
+        await refreshQuestionBanks();
+        renderQuestionBankManager();
+      },
+    };
 
     function renderStatus(element) {
       const state = statusStates.get(element);
@@ -432,6 +665,7 @@ const YTD_OPTIONS = (() => {
       );
       updateLanguageButtonState(languageButtons, currentLanguage);
       for (const element of statusStates.keys()) renderStatus(element);
+      renderQuestionBankManager();
     }
 
     async function loadSettings() {
@@ -462,6 +696,7 @@ const YTD_OPTIONS = (() => {
         applyLanguage("en");
       }
       await loadSettings();
+      await questionBankCallbacks.onRefresh();
     }
 
     async function saveSettings(event) {
@@ -567,6 +802,7 @@ const YTD_OPTIONS = (() => {
     updateLanguageButtonState,
     updateLocalizedPrompt,
     switchPromptDraft,
+    createQuestionBankCallbacks,
     initialize,
   };
 })();

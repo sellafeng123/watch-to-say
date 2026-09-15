@@ -29,6 +29,7 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
     assert.ok(releaseCheck.includes(`"${script}"`));
   }
   assert.ok(releaseCheck.includes('"question-bank.js"'));
+  assert.ok(releaseCheck.includes('"question-bank-ui.js"'));
   assert.ok(releaseCheck.includes('"prompts/question-bank-import.md"'));
 });
 
@@ -389,7 +390,7 @@ test("Corpus Palace runtime files load in the required order and do not overclai
   );
   assert.match(
     read("options.html"),
-    /<script src="settings\.js"><\/script>[\s\S]*?<script src="question-bank\.js"><\/script>[\s\S]*?<script src="options\.js"><\/script>/,
+    /<script src="settings\.js"><\/script>[\s\S]*?<script src="question-bank\.js"><\/script>[\s\S]*?<script src="question-bank-ui\.js"><\/script>[\s\S]*?<script src="options\.js"><\/script>/,
   );
   assert.match(
     read("sidepanel.html"),

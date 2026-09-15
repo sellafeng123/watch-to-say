@@ -655,6 +655,10 @@ async function previewQuestionBankImport(draft = {}) {
         name: bank.name,
         profiles: [...bank.profiles],
         questionCount: bank.questions.length,
+        partCounts: bank.questions.reduce((counts, question) => {
+          if (question.part) counts[question.part] = (counts[question.part] || 0) + 1;
+          return counts;
+        }, {}),
       },
       sampleQuestions: bank.questions.slice(0, 5),
       unrecognized,
