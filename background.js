@@ -22,6 +22,16 @@ const AI_PROVIDER_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const CORPUS_VIDEO_NOTES_KEY = "ytd_corpus_video_notes";
 const CORPUS_EXPORTS_KEY = "ytd_corpus_exports";
 const PRACTICE_HIGHLIGHTS_KEY = "ytd_practice_highlights_v1";
+const QUESTION_BANK_PREVIEWS_KEY = "ytd_question_bank_previews_v1";
+const QUESTION_BANK_IMPORT_CHUNK_CHARS = 12_000;
+const QUESTION_BANK_IMPORT_CONCURRENCY = 3;
+const QUESTION_BANK_PREVIEW_TTL_MS = 30 * 60 * 1000;
+const QUESTION_BANK_NAME_CHARS = 120;
+const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
+const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
+const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
+let questionBankMutationQueue = Promise.resolve();
+let bundledIeltsBankPromise;
 const debugLog = (...args) => {
   if (DEBUG) console.log(...args);
 };
@@ -180,6 +190,399 @@ async function requestAiCompletion({
     clearTimeout(idleTimeoutId);
     clearTimeout(hardTimeoutId);
   }
+}
+
+function questionBankError(error) {
+  return { success: false, error };
+}
+
+function cleanQuestionBankText(value, limit) {
+  return typeof value === "string"
+    ? value.replace(/\s+/g, " ").trim().slice(0, limit)
+    : "";
+}
+
+function normalizeQuestionBankProfiles(value) {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((profile) => QUESTION_BANK_PROFILES.has(profile)))];
+}
+
+function makeQuestionBankToken() {
+  if (typeof globalThis.crypto?.randomUUID === "function") {
+    return globalThis.crypto.randomUUID();
+  }
+  if (typeof globalThis.crypto?.getRandomValues === "function") {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  const error = new Error("Secure random tokens are unavailable.");
+  error.code = "TOKEN_GENERATION_FAILED";
+  throw error;
+}
+
+function splitQuestionBankSource(sourceText) {
+  const chunks = [];
+  let current = "";
+  const flush = () => {
+    if (current) chunks.push(current);
+    current = "";
+  };
+  const append = (piece) => {
+    if (!piece) return;
+    const separator = current ? "\n\n" : "";
+    if (current.length + separator.length + piece.length <= QUESTION_BANK_IMPORT_CHUNK_CHARS) {
+      current += separator + piece;
+      return;
+    }
+    flush();
+    current = piece;
+  };
+
+  for (const paragraph of sourceText.replace(/\r\n?/g, "\n").split(/\n\s*\n/)) {
+    let remaining = paragraph.trim();
+    while (remaining.length > QUESTION_BANK_IMPORT_CHUNK_CHARS) {
+      let splitAt = remaining.lastIndexOf("\n", QUESTION_BANK_IMPORT_CHUNK_CHARS);
+      if (splitAt < QUESTION_BANK_IMPORT_CHUNK_CHARS / 2) {
+        splitAt = remaining.lastIndexOf(" ", QUESTION_BANK_IMPORT_CHUNK_CHARS);
+      }
+      if (splitAt < QUESTION_BANK_IMPORT_CHUNK_CHARS / 2) {
+        splitAt = QUESTION_BANK_IMPORT_CHUNK_CHARS;
+      }
+      append(remaining.slice(0, splitAt).trim());
+      flush();
+      remaining = remaining.slice(splitAt).trimStart();
+    }
+    append(remaining);
+  }
+  flush();
+  return chunks;
+}
+
+async function mapWithQuestionBankConcurrency(items, worker) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  async function run() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  const workerCount = Math.min(QUESTION_BANK_IMPORT_CONCURRENCY, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => run()));
+  return results;
+}
+
+function withQuestionBankMutation(operation) {
+  const result = questionBankMutationQueue.then(operation, operation);
+  questionBankMutationQueue = result.catch(() => {});
+  return result;
+}
+
+function normalizeStoredLearnerBanks(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  return value
+    .slice(0, YTD_QUESTION_BANK.LIMITS.maxBanks)
+    .map((bank) => YTD_QUESTION_BANK.normalizeBank(bank))
+    .filter((bank) => (
+      bank
+      && bank.source === "learner_bank"
+      && bank.id
+      && bank.name
+      && bank.questions.length
+      && !seen.has(bank.id)
+      && seen.add(bank.id)
+    ));
+}
+
+function questionBankMetadata(bank) {
+  const partCounts = { part1: 0, part2: 0, part3: 0, general: 0 };
+  for (const question of bank.questions) {
+    partCounts[question.part || "general"] += 1;
+  }
+  return {
+    id: bank.id,
+    name: bank.name,
+    source: bank.source,
+    profiles: [...bank.profiles],
+    questionCount: bank.questions.length,
+    partCounts,
+  };
+}
+
+function validateBundledIeltsBank(raw) {
+  const approval = raw?.approval;
+  if (
+    !raw
+    || raw.source !== "bundled_ielts"
+    || !Array.isArray(raw.profiles)
+    || raw.profiles.length !== 1
+    || raw.profiles[0] !== "ielts"
+    || !Array.isArray(raw.questions)
+    || raw.questions.length < 3
+    || raw.questions.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
+    || approval?.status !== "approved"
+    || approval.schemaVersion !== 1
+    || approval.pageCount !== BUNDLED_IELTS_REVIEWED_PAGE_COUNT
+    || approval.reviewedPageCount !== approval.pageCount
+    || !Number.isInteger(approval.correctionsApplied)
+    || approval.correctionsApplied < 0
+    || !/^[a-f0-9]{64}$/i.test(approval.sourcePdfSha256 || "")
+    || !/^[a-f0-9]{64}$/i.test(approval.ocrSha256 || "")
+    || !Number.isFinite(Date.parse(approval.reviewedAt || ""))
+  ) {
+    return null;
+  }
+  const normalized = YTD_QUESTION_BANK.normalizeBank(raw);
+  if (
+    !normalized
+    || !normalized.id
+    || !normalized.name
+    || raw.id !== normalized.id
+    || raw.name !== normalized.name
+    || normalized.questions.length !== raw.questions.length
+  ) {
+    return null;
+  }
+  const byId = new Map(normalized.questions.map((question) => [question.id, question]));
+  const counts = { part1: 0, part2: 0, part3: 0 };
+  for (let index = 0; index < raw.questions.length; index += 1) {
+    const original = raw.questions[index];
+    const question = normalized.questions[index];
+    if (
+      !original
+      || original.id !== question?.id
+      || original.bankId !== normalized.id
+      || original.source !== "bundled_ielts"
+      || !Array.isArray(original.profiles)
+      || original.profiles.length !== 1
+      || original.profiles[0] !== "ielts"
+      || !Object.hasOwn(counts, original.part)
+      || original.topic !== question.topic
+      || original.question !== question.question
+      || !Array.isArray(original.cuePoints)
+      || original.cuePoints.length !== question.cuePoints.length
+      || original.cuePoints.some((cuePoint, cueIndex) => cuePoint !== question.cuePoints[cueIndex])
+      || original.parentCueCardId !== question.parentCueCardId
+      || original.season !== question.season
+      || original.createdAt !== question.createdAt
+    ) {
+      return null;
+    }
+    counts[original.part] += 1;
+  }
+  if (Object.values(counts).some((count) => count === 0)) return null;
+  for (const question of normalized.questions) {
+    if (question.part === "part3" && !question.parentCueCardId) return null;
+    if (!question.parentCueCardId) continue;
+    const parent = byId.get(question.parentCueCardId);
+    if (!parent || parent.part !== "part2") return null;
+  }
+  return normalized;
+}
+
+async function loadBundledIeltsBank() {
+  if (!bundledIeltsBankPromise) {
+    bundledIeltsBankPromise = (async () => {
+      try {
+        const response = await fetch(chrome.runtime.getURL(BUNDLED_IELTS_BANK_PATH));
+        if (!response.ok) return null;
+        return validateBundledIeltsBank(await response.json());
+      } catch (error) {
+        debugLog("[YouTube Digest] Optional IELTS bank unavailable:", error);
+        return null;
+      }
+    })();
+  }
+  return bundledIeltsBankPromise;
+}
+
+async function previewQuestionBankImport(draft = {}) {
+  if (typeof draft.sourceText !== "string" || !draft.sourceText.trim()) {
+    return questionBankError("INVALID_SOURCE_TEXT");
+  }
+  if (draft.sourceText.length > YTD_QUESTION_BANK.LIMITS.maxPasteChars) {
+    return questionBankError("PASTE_TOO_LARGE");
+  }
+  const name = cleanQuestionBankText(draft.name, QUESTION_BANK_NAME_CHARS);
+  if (!name) return questionBankError("INVALID_BANK_NAME");
+  const profiles = normalizeQuestionBankProfiles(draft.profiles);
+  if (!profiles.length) return questionBankError("INVALID_BANK_PROFILES");
+
+  let replaceBankId = null;
+  let bankId = `learner-${makeQuestionBankToken()}`;
+  if (draft.replaceBankId != null) {
+    replaceBankId = cleanQuestionBankText(draft.replaceBankId, 160);
+    const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
+    const existing = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY])
+      .find((bank) => bank.id === replaceBankId);
+    if (!replaceBankId || !existing) return questionBankError("QUESTION_BANK_NOT_FOUND");
+    bankId = existing.id;
+  }
+
+  try {
+    const chunks = splitQuestionBankSource(draft.sourceText);
+    const systemPrompt = await loadPromptSection("question-bank-import.md", "System prompt");
+    const recognized = await mapWithQuestionBankConcurrency(chunks, async (sourceText) => {
+      const userPrompt = await loadPromptSection(
+        "question-bank-import.md",
+        "User prompt",
+        { sourceText },
+      );
+      const { text } = await requestAiCompletion({
+        temperature: 0,
+        maxTokens: 8192,
+        responseFormat: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      });
+      const parsed = parseLooseJson(text);
+      if (
+        parsed?.label !== "AI 题库识别"
+        || !Array.isArray(parsed.questions)
+        || !Array.isArray(parsed.unrecognized)
+      ) {
+        throw Object.assign(new Error("Invalid question-bank recognition response."), {
+          code: "INVALID_AI_RESPONSE",
+        });
+      }
+      return parsed;
+    });
+    const parsed = YTD_QUESTION_BANK.validateParsedBank({
+      label: "AI 题库识别",
+      questions: recognized.flatMap((result) => result.questions),
+      unrecognized: recognized.flatMap((result) => result.unrecognized),
+    }, { id: bankId, name, profiles }, draft.sourceText);
+    if (!parsed) return questionBankError("INVALID_AI_RESPONSE");
+
+    const previewToken = makeQuestionBankToken();
+    await withQuestionBankMutation(async () => {
+      const stored = await chrome.storage.local.get(QUESTION_BANK_PREVIEWS_KEY);
+      const now = Date.now();
+      const previews = Object.fromEntries(
+        Object.entries(stored[QUESTION_BANK_PREVIEWS_KEY] || {})
+          .filter(([, preview]) => Number.isFinite(preview?.expiresAt) && preview.expiresAt > now),
+      );
+      previews[previewToken] = {
+        bank: parsed.bank,
+        replaceBankId,
+        unrecognized: parsed.unrecognized,
+        expiresAt: now + QUESTION_BANK_PREVIEW_TTL_MS,
+      };
+      await chrome.storage.local.set({ [QUESTION_BANK_PREVIEWS_KEY]: previews });
+    });
+    return {
+      success: true,
+      previewToken,
+      summary: {
+        name: parsed.bank.name,
+        profiles: [...parsed.bank.profiles],
+        questionCount: parsed.bank.questions.length,
+      },
+      sampleQuestions: parsed.bank.questions.slice(0, 5),
+      unrecognized: parsed.unrecognized,
+    };
+  } catch (error) {
+    return questionBankError(error.code || "QUESTION_BANK_RECOGNITION_FAILED");
+  }
+}
+
+async function saveQuestionBank(request = {}) {
+  return withQuestionBankMutation(async () => {
+    const previewToken = cleanQuestionBankText(request.previewToken, 200);
+    if (!previewToken) return questionBankError("INVALID_PREVIEW_TOKEN");
+    const stored = await chrome.storage.local.get([
+      YTD_QUESTION_BANK.STORAGE_KEY,
+      QUESTION_BANK_PREVIEWS_KEY,
+    ]);
+    const previews = { ...(stored[QUESTION_BANK_PREVIEWS_KEY] || {}) };
+    const preview = previews[previewToken];
+    if (!preview || typeof preview !== "object") {
+      return questionBankError("INVALID_PREVIEW_TOKEN");
+    }
+    if (!Number.isFinite(preview.expiresAt) || preview.expiresAt <= Date.now()) {
+      delete previews[previewToken];
+      await chrome.storage.local.set({ [QUESTION_BANK_PREVIEWS_KEY]: previews });
+      return questionBankError("PREVIEW_EXPIRED");
+    }
+    const bank = YTD_QUESTION_BANK.normalizeBank(preview.bank);
+    if (!bank || bank.source !== "learner_bank" || !bank.id || !bank.name || !bank.questions.length) {
+      return questionBankError("INVALID_PREVIEW_TOKEN");
+    }
+    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    let nextBanks;
+    if (preview.replaceBankId) {
+      const index = banks.findIndex((candidate) => candidate.id === preview.replaceBankId);
+      if (index === -1 || bank.id !== preview.replaceBankId) {
+        return questionBankError("QUESTION_BANK_NOT_FOUND");
+      }
+      nextBanks = banks.slice();
+      nextBanks[index] = bank;
+    } else {
+      if (banks.length >= YTD_QUESTION_BANK.LIMITS.maxBanks) {
+        return questionBankError("QUESTION_BANK_LIMIT");
+      }
+      if (banks.some((candidate) => candidate.id === bank.id)) {
+        return questionBankError("QUESTION_BANK_EXISTS");
+      }
+      nextBanks = [...banks, bank];
+    }
+    delete previews[previewToken];
+    await chrome.storage.local.set({
+      [YTD_QUESTION_BANK.STORAGE_KEY]: nextBanks,
+      [QUESTION_BANK_PREVIEWS_KEY]: previews,
+    });
+    return { success: true, bank };
+  });
+}
+
+async function renameQuestionBank(request = {}) {
+  return withQuestionBankMutation(async () => {
+    const bankId = cleanQuestionBankText(request.bankId, 160);
+    const name = cleanQuestionBankText(request.name, QUESTION_BANK_NAME_CHARS);
+    if (!bankId) return questionBankError("INVALID_BANK_ID");
+    if (!name) return questionBankError("INVALID_BANK_NAME");
+    const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
+    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    const index = banks.findIndex((bank) => bank.id === bankId);
+    if (index === -1) return questionBankError("QUESTION_BANK_NOT_FOUND");
+    const bank = { ...banks[index], name };
+    const nextBanks = banks.slice();
+    nextBanks[index] = bank;
+    await chrome.storage.local.set({ [YTD_QUESTION_BANK.STORAGE_KEY]: nextBanks });
+    return { success: true, bank };
+  });
+}
+
+async function deleteQuestionBank(request = {}) {
+  return withQuestionBankMutation(async () => {
+    const bankId = cleanQuestionBankText(request.bankId, 160);
+    if (!bankId) return questionBankError("INVALID_BANK_ID");
+    const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
+    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    const nextBanks = banks.filter((bank) => bank.id !== bankId);
+    if (nextBanks.length === banks.length) return questionBankError("QUESTION_BANK_NOT_FOUND");
+    await chrome.storage.local.set({ [YTD_QUESTION_BANK.STORAGE_KEY]: nextBanks });
+    return { success: true };
+  });
+}
+
+async function listQuestionBanks() {
+  const [stored, bundledBank] = await Promise.all([
+    chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY),
+    loadBundledIeltsBank(),
+  ]);
+  return {
+    success: true,
+    banks: normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY])
+      .map(questionBankMetadata),
+    bundledAvailable: !!bundledBank,
+    bundled: bundledBank ? questionBankMetadata(bundledBank) : null,
+  };
 }
 
 async function readBoundedAiResponse(response, onActivity) {
@@ -424,6 +827,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.action === "getPracticeMaterials") {
     handlePracticeMaterials(message.request).then(sendResponse).catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "previewQuestionBankImport") {
+    previewQuestionBankImport(message.request || message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "saveQuestionBank") {
+    saveQuestionBank(message.request || message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "renameQuestionBank") {
+    renameQuestionBank(message.request || message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "deleteQuestionBank") {
+    deleteQuestionBank(message.request || message)
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "listQuestionBanks" || message.action === "getPracticeQuestionSources") {
+    listQuestionBanks()
+      .then(sendResponse)
+      .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
   }
 
@@ -2124,4 +2562,11 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   getPracticeHighlights,
   validatePracticeMaterials,
   handlePracticeMaterials,
+  splitQuestionBankSource,
+  validateBundledIeltsBank,
+  previewQuestionBankImport,
+  saveQuestionBank,
+  renameQuestionBank,
+  listQuestionBanks,
+  deleteQuestionBank,
 };

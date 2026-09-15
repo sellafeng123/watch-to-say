@@ -29,6 +29,7 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
     assert.ok(releaseCheck.includes(`"${script}"`));
   }
   assert.ok(releaseCheck.includes('"question-bank.js"'));
+  assert.ok(releaseCheck.includes('"prompts/question-bank-import.md"'));
 });
 
 test("public release file list excludes every local IELTS artifact and development script", () => {
@@ -42,6 +43,7 @@ test("public release file list excludes every local IELTS artifact and developme
   assert.equal(result.status, 0, result.stderr);
   const files = result.stdout.trim().split("\n");
   assert.ok(files.includes("question-bank.js"));
+  assert.ok(files.includes("prompts/question-bank-import.md"));
   assert.ok(files.every((file) => !/^data\/ielts-(?:question-bank|ocr-review).*\.json$/.test(file)));
   assert.ok(files.every((file) => !/^tmp\/ielts-ocr-.*\.json$/.test(file)));
   assert.ok(files.every((file) => !/^scripts\//.test(file)));
