@@ -316,6 +316,7 @@ test("rejects incomplete, duplicate, empty, overlong, unrelated, or near-duplica
     ["I get into the zone after coffee.", "", "Music helps me get into the zone."],
     ["I get into the zone after coffee.", "Music helps me get into the zone.", `I get into the zone ${"x".repeat(301)}`],
     ["I drink tea before work.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone."],
+    ["I get coffee before I walk into the zone.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone."],
     ["I get into the zone after coffee before work.", "I get into the zone after coffee before work every day.", "Once I get into the zone, I stop checking my phone."],
   ];
   invalidReferences.forEach((references) => {

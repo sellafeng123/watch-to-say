@@ -56,6 +56,18 @@ test("prefers the target caption and bounds a long unpunctuated context", () => 
   assert.ok(answer.length <= 320);
 });
 
+test("centers a long target caption on the selected expression instead of truncating its start", () => {
+  const targetText = `${"lead ".repeat(80)}Then I got into the zone and finished my notes ${"tail ".repeat(20)}`;
+  const answer = practice.extractAnswerSentence({
+    context: targetText,
+    selectedText: "got into the zone",
+    expression: "get into the zone",
+    targetText,
+  });
+  assert.match(answer, /got into the zone/);
+  assert.ok(answer.length <= 320);
+});
+
 test("bounds an unpunctuated target window when no target caption was stored", () => {
   const context = `${"before ".repeat(90)}I get into the zone while studying ${"after ".repeat(90)}`;
   const answer = practice.extractAnswerSentence({ context, selectedText: "get into the zone", expression: "get into the zone" });
@@ -70,6 +82,12 @@ test("centers an unpunctuated window on an inflected expression match", () => {
   assert.match(answer, /keeps a notebook/);
   assert.ok(answer.length <= 320);
   assert.notEqual(answer, context);
+});
+
+test("requires a contiguous ordered expression sequence in generated references", () => {
+  const target = { selectedText: "got into the zone", expression: "get into the zone" };
+  assert.equal(practice.referenceUsesExpression("I get coffee before I walk into the zone.", target), false);
+  assert.equal(practice.referenceUsesExpression("After tea, I got into the zone.", target), true);
 });
 
 test("falls back to the shortest clause when the expression is absent", () => {

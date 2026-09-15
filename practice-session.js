@@ -66,7 +66,7 @@ const YTD_PRACTICE = (() => {
   function referenceUsesExpression(text, { selectedText, expression } = {}) {
     const source = cleanText(text, 1000).toLocaleLowerCase();
     const selected = cleanText(selectedText, 300).toLocaleLowerCase();
-    return Boolean(source && ((selected && source.includes(selected)) || sentenceHasExpressionTokens(source, expression)));
+    return Boolean(source && ((selected && source.includes(selected)) || inflectedExpressionSpan(source, expression)));
   }
 
   function referenceContextTokens(reference, selectedText, expression) {
@@ -96,17 +96,20 @@ const YTD_PRACTICE = (() => {
     return (clauses.sort((left, right) => left.length - right.length)[0] || cleanText(text, 320)).slice(0, 320);
   }
 
-  function boundedTargetWindow(text, selectedText, expression) {
-    const source = cleanText(text, 4000);
-    if (source.length <= 320) return source;
+  function targetExpressionSpan(source, selectedText, expression) {
     const lowerSource = source.toLocaleLowerCase();
     const needles = [selectedText, expression]
       .map((value) => cleanText(value, 300).toLocaleLowerCase())
       .filter(Boolean);
-    const literalMatch = needles
+    return needles
       .map((needle) => ({ index: lowerSource.indexOf(needle), length: needle.length }))
-      .find((candidate) => candidate.index >= 0);
-    const match = literalMatch || inflectedExpressionSpan(source, expression);
+      .find((candidate) => candidate.index >= 0) || inflectedExpressionSpan(source, expression);
+  }
+
+  function boundedTargetWindow(text, selectedText, expression) {
+    const source = cleanText(text, 4000);
+    if (source.length <= 320) return source;
+    const match = targetExpressionSpan(source, selectedText, expression);
     if (!match) return shortestClause(source);
     const availableBefore = Math.floor((320 - match.length) / 2);
     const start = Math.max(0, Math.min(match.index - availableBefore, source.length - 320));
@@ -121,11 +124,16 @@ const YTD_PRACTICE = (() => {
 
   function extractAnswerSentence({ context, selectedText, expression, targetText } = {}) {
     const sentences = splitSentences(context);
-    const target = cleanText(targetText, 320).toLocaleLowerCase();
+    const target = cleanText(targetText, 4000);
     if (target) {
-      const anchored = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(target));
+      if (target.length > 320) {
+        return targetExpressionSpan(target, selectedText, expression)
+          ? boundedTargetWindow(target, selectedText, expression)
+          : boundedTargetWindow(context, selectedText, expression);
+      }
+      const anchored = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(target.toLocaleLowerCase()));
       if (anchored && /[.!?。！？]/.test(anchored)) return anchored;
-      return cleanText(targetText, 320);
+      return target;
     }
     const selected = cleanText(selectedText, 300).toLocaleLowerCase();
     if (selected) {
