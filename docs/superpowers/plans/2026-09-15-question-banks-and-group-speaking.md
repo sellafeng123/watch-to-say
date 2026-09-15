@@ -16,8 +16,9 @@
 - Work, daily conversation, and travel support `smart_mix`, `mine_only`, and `ai_only`; IELTS supports `bundled` and `bundled_plus_mine`.
 - Listening reveal contains only the complete source sentence that contains the target expression.
 - Internalization asks for two learner sentences and reveals exactly three varied reference examples under `表达参考`.
-- Speaking is one whole-set round with `完成本次练习` and `需要再练，换一题`; it is not rated per expression.
-- Repeating a speaking round must exclude every question ID already used in the current session.
+- Speaking stays locked until every selected expression is marked `mastered` for internalization; `review` items loop without a retry limit, while the learner can exit without output.
+- Speaking is one whole-set round with `完成本次练习` and `需要再练`; the latter offers same-question retry, new-question replacement, or return, and it is never rated per expression.
+- Requesting a new speaking question must exclude every question ID already used in the current session; same-question retry remains in the existing round.
 - Pasted source text is sent to DeepSeek only after `识别题库` and is not stored after the learner confirms the structured preview.
 - Learner speech is never recorded or uploaded.
 - The supplied OCR-derived IELTS content remains local and Git-ignored unless redistribution permission is confirmed.
@@ -398,12 +399,12 @@ git commit -m "feat: deepen listening and internalization practice"
 - Modify: `tests/practice-session.test.js`
 
 **Interfaces:**
-- Produces: `eligibleSpeakingItems(session)`, `addSpeakingRound(session, round)`, `finishSpeakingRound(session, { roundId, outcome })`, `usedQuestionIds(session)`, and session fields `questionSourceMode`, `speakingRounds`.
+- Produces: `internalizationReviewItems(session)`, `isReadyForSpeaking(session)`, `speakingItems(session)`, `addSpeakingRound(session, round)`, `retrySameSpeakingRound(session, { roundId })`, `finishSpeakingRound(session, { roundId, outcome })`, `usedQuestionIds(session)`, and session fields `questionSourceMode`, `speakingExpressionIds`, `speakingRounds`.
 - Consumes: validated round `{ questionId, source, part, question, cuePoints, reference }`.
 
 - [ ] **Step 1: Write failing state-transition tests**
 
-Test that only internalization-mastered items are eligible; a round records the full eligible ID set; `needs_practice` retains the session for another round; `finished` advances to the item retry queue or summary; used question IDs are unique; item-level retry tasks include only listening/internalization; no item-level speaking rating is accepted.
+Test that one remaining internalization `review` item keeps speaking locked; only review items enter the next internalization pass; repeated review passes have no fixed limit; all-mastered readiness snapshots the complete selected ID set; retrying the same round increments `attemptCount` without duplicating its question ID; changing questions records `needs_practice`; `finished` advances to unresolved listening review or summary; no item-level speaking rating is accepted.
 
 - [ ] **Step 2: Run the model tests and verify RED**
 
@@ -413,11 +414,11 @@ Expected: failures because round transitions are absent and speaking remains an 
 
 - [ ] **Step 3: Implement immutable round transitions**
 
-Set item stages to `{ listening, internalization }`. Initialize `speakingRounds: []` and normalize source mode through `YTD_QUESTION_BANK.normalizeSourceMode`. `addSpeakingRound` rejects duplicate question IDs and empty references. `finishSpeakingRound` changes only the current unfinished round and accepts only `needs_practice` or `finished`.
+Set item stages to `{ listening, internalization }`. Initialize `speakingExpressionIds: []` and `speakingRounds: []`, and normalize source mode through `YTD_QUESTION_BANK.normalizeSourceMode`. `isReadyForSpeaking` returns true only when every selected item is `mastered` for internalization; when it first becomes true, snapshot every selected item ID in `speakingExpressionIds`. `internalizationReviewItems` remains repeatable without consuming the existing one-pass listening retry marker. `addSpeakingRound` rejects duplicate new-question IDs and empty references. `retrySameSpeakingRound` increments only `attemptCount`. `finishSpeakingRound` changes only the current unfinished round and accepts only `needs_practice` or `finished`.
 
 - [ ] **Step 4: Update summary behavior**
 
-Replace per-item output counts with `口语输出：完成 N 题 / 需要再练 N 题`. Preserve listening/internalization pending-expression summaries and the one-time retry rule.
+Replace per-item output counts with `口语输出：完成 N 题 / 需要再练 N 题 / 原题重答 N 次`. Preserve listening pending-expression summaries. Internalization review loops disappear from the final summary once mastered; only an explicit early exit can summarize unresolved internalization items.
 
 - [ ] **Step 5: Verify GREEN and commit**
 
@@ -447,7 +448,7 @@ git commit -m "feat: model whole-set speaking rounds"
 
 - [ ] **Step 1: Write failing selection and validation tests**
 
-Cover: IELTS responses must return an ID from candidates; displayed question/cue points come from stored data, not AI text; `mine_only` never falls back to generation; `smart_mix` falls back only when there are no unused suitable learner questions; generated IDs are deterministic and excluded on repeat; the request contains all eligible expressions but at most 40 candidates; IELTS Part answer length bands and unknown fields are validated.
+Cover: IELTS responses must return an ID from candidates; displayed question/cue points come from stored data, not AI text; `mine_only` never falls back to generation; `smart_mix` falls back only when there are no unused suitable learner questions; generated IDs are deterministic and excluded when changing questions; the request contains the complete mastered expression set but at most 40 candidates; IELTS Part answer length bands and unknown fields are validated.
 
 - [ ] **Step 2: Run focused tests and verify RED**
 
@@ -511,20 +512,20 @@ git commit -m "feat: generate whole-set speaking rounds"
 - Modify: `tests/release.test.js`
 
 **Interfaces:**
-- Consumes: `mountSetup` receives question-source metadata; `mountSpeakingRound({ root, round, expressions, position, onSeek, onReveal, onFinish, onNeedPractice, onExit })`.
+- Consumes: `mountSetup` receives question-source metadata; `mountSpeakingRound({ root, round, expressions, position, retryChoiceOpen, onSeek, onReveal, onFinish, onNeedPractice, onRetrySame, onChangeQuestion, onCancelRetry, onExit })`.
 - Produces: setup callback `{ selectedIds, profile, sourceMode }`; speaking-round callbacks without item-level ratings; global/CommonJS `YTD_PRACTICE_FLOW` with `create(session)`, `currentView(flow)`, and `reduce(flow, event) -> { flow, effect }`.
 
 - [ ] **Step 1: Write failing UI behavior tests**
 
-Test observable DOM behavior: IELTS profile exposes only bundled modes; non-IELTS exposes smart/mine/AI; source choices update when profile changes; speaking screen displays one question and all target-expression chips; reference and final actions are hidden before `口语参考`; after reveal exactly `完成本次练习` and `需要再练，换一题` appear; repeat shows the API-cost reminder; Part 2 cue points render as a list.
+Test observable DOM behavior: IELTS profile exposes only bundled modes; non-IELTS exposes smart/mine/AI; source choices update when profile changes; speaking screen displays one question and every selected-expression chip; reference and final actions are hidden before `口语参考`; after reveal exactly `完成本次练习` and `需要再练` appear; opening retry choices shows `再答一次这道题`, `换一道新题`, and `返回当前题目`; only the new-question choice shows the API-cost reminder; Part 2 cue points render as a list.
 
 - [ ] **Step 2: Write failing orchestration tests**
 
-Drive the pure reducer with literal events: `RATE_ITEM`, `SPEAKING_READY`, `REVEAL_SPEAKING`, `FINISH_SPEAKING`, and `SPEAKING_FAILED`. Prove that the flow contains only listening/internalization item queues; completing those queues emits `{ type: "REQUEST_SPEAKING_ROUND", expressionIds, usedQuestionIds }` once; `finished` proceeds to the item retry list and then summary; `needs_practice` records the used question ID and emits another request; `SPEAKING_FAILED` keeps the prior round visible with an inline error. Do not assert by grepping `sidepanel.js` source.
+Drive the pure reducer with literal events: `RATE_ITEM`, `SPEAKING_READY`, `REVEAL_SPEAKING`, `OPEN_RETRY_CHOICE`, `RETRY_SAME_QUESTION`, `RETRY_NEW_QUESTION`, `CANCEL_RETRY_CHOICE`, `FINISH_SPEAKING`, and `SPEAKING_FAILED`. Prove that the flow contains only listening/internalization item queues; any internalization review result sends only those items through another internalization pass and emits no speaking request; the all-mastered transition emits `{ type: "REQUEST_SPEAKING_ROUND", expressionIds, usedQuestionIds }` once for the complete set; same-question retry hides the reference and increments the existing attempt without an effect; new-question retry records the used ID and emits another request; `SPEAKING_FAILED` keeps the prior round visible with an inline error. Do not assert by grepping `sidepanel.js` source.
 
 - [ ] **Step 3: Run UI tests and verify RED**
 
-Run: `node --test tests/practice-ui.test.js`
+Run: `node --test tests/practice-ui.test.js tests/practice-flow.test.js`
 
 Expected: failures for missing source selector, speaking-round component, and repeat flow.
 
@@ -538,7 +539,7 @@ Add `mountSpeakingRound` with escaped question text, optional IELTS Part label/c
 
 - [ ] **Step 6: Replace side-panel per-item speaking orchestration**
 
-Implement `practice-flow.js` as an immutable reducer and load it before `sidepanel.js`. Use `const PRACTICE_STAGES = ["listening", "internalization"]`. `sidepanel.js` renders `currentView(flow)` and performs only declared effects. After internalization, the reducer requests a speaking round with all `eligibleSpeakingItems`. On finish, it enters the existing one-pass item retry queue and then summary. On need-practice, it marks the round and requests another with `usedQuestionIds`; a failed request dispatches `SPEAKING_FAILED` so the reducer restores the prior round and attaches an inline error.
+Implement `practice-flow.js` as an immutable reducer and load it before `sidepanel.js`. Use `const PRACTICE_STAGES = ["listening", "internalization"]`. `sidepanel.js` renders `currentView(flow)` and performs only declared effects. After the initial internalization pass, the reducer repeatedly queues only `internalizationReviewItems`; it requests the first speaking round only after `isReadyForSpeaking` passes and sends all `speakingExpressionIds`. `OPEN_RETRY_CHOICE` changes only the view. `RETRY_SAME_QUESTION` hides the reference and increments the current round with no request. `RETRY_NEW_QUESTION` marks the current round and requests another using `usedQuestionIds`; a failed request dispatches `SPEAKING_FAILED` so the reducer restores the prior round and attaches an inline error. `FINISH_SPEAKING` proceeds to unresolved listening retry items and then summary.
 
 - [ ] **Step 7: Verify GREEN and commit**
 

@@ -8,10 +8,11 @@ This document extends and supersedes the speaking-output and question-bank secti
 
 Turn the speaking-output stage from one question per expression into a lighter whole-set exercise:
 
-1. the learner moves expressions through listening and internalization according to the existing mastery prerequisites;
-2. the output stage receives the full set of expressions that reached output;
-3. one relevant speaking question is selected or generated for the set;
-4. the learner answers aloud, reveals an appropriate reference answer, and chooses either to finish or to practise again with a different question.
+1. the learner moves every selected expression through listening and internalization;
+2. any expression marked `review` for internalization repeats until every selected expression is marked `mastered`, or the learner exits without entering output;
+3. the output stage receives the complete selected expression set only after that strict mastery gate passes;
+4. one relevant speaking question is selected or generated for the set;
+5. the learner answers aloud, reveals an appropriate reference answer, and chooses to finish, retry the same question, or practise with a different question.
 
 IELTS mode must select authentic questions from an IELTS question bank. Work, daily conversation, and travel modes can use a learner-pasted bank, DeepSeek-generated questions, or both.
 
@@ -154,13 +155,11 @@ Type-specific guidance remains:
 
 The reveal button is labelled `表达参考`, not `显示答案`. Revealing it displays exactly three concise reference examples with meaningfully different contexts. These examples are guidance, not a single correct answer.
 
-The learner then marks the item `mastered` or `review`. Item-level failures still enter the existing one-time final retry list.
+The learner then marks the item `mastered` or `review`. After every selected expression has completed its first internalization attempt, expressions still marked `review` enter an immediate `再过一遍` internalization loop. Only those expressions repeat; expressions already marked `mastered` are not shown again. The loop has no fixed retry limit: it continues until every selected expression is `mastered` or the learner exits the session. Exiting is always allowed, but no speaking-output question is created for an incomplete session.
 
 ### 3. Group speaking output
 
-Speaking no longer creates one task per word, phrase, or sentence frame. After the initial item-level internalization stage, the output stage collects every item whose internalization status is `mastered`.
-
-If no item qualifies, the session ends with an explanation that no speaking question was generated. Otherwise one speaking round is created for the complete eligible set.
+Speaking no longer creates one task per word, phrase, or sentence frame. It starts only when every selected expression's internalization status is `mastered`. One speaking round is then created for the complete selected expression set; the implementation must not start early with a mastered subset.
 
 The screen contains:
 
@@ -170,11 +169,19 @@ The screen contains:
 - an instruction to answer aloud before revealing the reference;
 - a `口语参考` reveal action;
 - one profile-appropriate reference answer;
-- `完成本次练习` and `需要再练，换一题` actions.
+- `完成本次练习` and `需要再练` actions.
 
 The round receives one overall outcome. It does not ask the learner to rate every expression separately.
 
-Selecting `完成本次练习` marks the group-output round finished and proceeds to the existing final `再过一遍` list when item-level listening or internalization failures remain; otherwise it opens the session summary. Selecting `需要再练，换一题` records the current round as needing practice, requests a different unused question for the same expression set, and starts a new round. This can repeat until the learner finishes the output stage. Every new DeepSeek-generated or AI-ranked round can consume API tokens, so the UI displays a short cost reminder next to the repeat action.
+Selecting `完成本次练习` marks the group-output round finished and proceeds to any unresolved listening-recall review items, then the session summary. Internalization cannot remain unresolved because it is the output gate.
+
+Selecting `需要再练` does not immediately change the question. It reveals three inline choices:
+
+- `再答一次这道题`: increment the current round's attempt count, hide the reference again, and return to speak-first mode without a DeepSeek request;
+- `换一道新题`: mark the current round as needing practice, record its question ID, request a different unused question for the same complete expression set, and start a new round;
+- `返回当前题目`: close the choice panel without changing state.
+
+The learner may retry the same question or change questions repeatedly until selecting `完成本次练习`. Only changing questions can consume another DeepSeek request, so the API-cost reminder appears next to `换一道新题`, not next to same-question retry.
 
 ## IELTS Question Selection and Answers
 
@@ -211,7 +218,7 @@ The session adds:
 ```js
 {
   questionSourceMode: "bundled" | "bundled_plus_mine" | "smart_mix" | "mine_only" | "ai_only",
-  eligibleSpeakingItemIds: [],
+  speakingExpressionIds: [],
   usedQuestionIds: [],
   speakingRounds: [
     {
@@ -222,7 +229,8 @@ The session adds:
       question: "...",
       cuePoints: [],
       reference: "...",
-      outcome: "needs_practice" | "finished",
+      attemptCount: 1,
+      outcome: null | "needs_practice" | "finished",
       createdAt: 0
     }
   ]
@@ -247,7 +255,7 @@ No action receives the complete long-term corpus. Each request contains only the
 - Paste parsing errors preserve the textarea for correction and do not overwrite an existing saved bank.
 - If `My bank only` is exhausted, the UI offers to change source mode or finish; it does not silently call DeepSeek for a new question.
 - If an IELTS response returns an unknown question ID, the request is rejected and can be retried once.
-- If DeepSeek fails while changing questions, the current completed round remains visible and the learner can retry or finish.
+- If DeepSeek fails while changing questions, the current round remains visible and the learner can retry the same question, try changing again, or finish.
 - Closing the practice modal must not delete saved highlights or question banks.
 
 ## Privacy and Storage Limits
@@ -271,11 +279,12 @@ No action receives the complete long-term corpus. Each request contains only the
 
 1. Listening reveal shows only the complete source sentence containing the expression.
 2. Internalization asks for two learner sentences and reveals exactly three varied reference examples under `表达参考`.
-3. Speaking creates one whole-set round rather than one question per expression.
-4. A speaking round is rated only as finished or needing more practice.
-5. Needing more practice produces a different unused question and can repeat until the learner finishes.
-6. IELTS mode displays an exact stored Part 1, Part 2, or Part 3 question and a Part-appropriate Band 7 to 7.5 reference answer.
-7. Work, daily conversation, and travel can use learner banks, DeepSeek generation, or the documented smart fallback.
-8. Pasted text is previewed and explicitly confirmed before structured records replace or create a bank.
-9. Question IDs cannot repeat within one session unless the selected source is exhausted and the learner explicitly resets history.
-10. The existing Transcript highlighting and Obsidian three-column corpus table remain unchanged.
+3. Speaking remains locked until every selected expression is marked mastered for internalization; review items loop without a retry limit and the learner may exit without output.
+4. Speaking creates one whole-set round using the complete selected expression set rather than one question per expression or an early mastered subset.
+5. A speaking round is rated only as finished or needing more practice.
+6. Needing more practice lets the learner retry the same question without an API call, change to a different unused question, or return without changing state.
+7. IELTS mode displays an exact stored Part 1, Part 2, or Part 3 question and a Part-appropriate Band 7 to 7.5 reference answer.
+8. Work, daily conversation, and travel can use learner banks, DeepSeek generation, or the documented smart fallback.
+9. Pasted text is previewed and explicitly confirmed before structured records replace or create a bank.
+10. New-question IDs cannot repeat within one session; repeating the same question remains another attempt on its existing round.
+11. The existing Transcript highlighting and Obsidian three-column corpus table remain unchanged.
