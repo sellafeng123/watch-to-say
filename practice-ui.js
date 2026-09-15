@@ -107,6 +107,7 @@ const YTD_PRACTICE_UI = (() => {
         context: anchor.context,
         selectedText: anchor.selectedText,
         expression: item.expression,
+        targetText: anchor.targetText,
       }) || anchor.selectedText || item.expression;
       answer.append(el(documentRef, "strong", "", "参考答案"), el(documentRef, "p", "", reference));
     } else if (stage === "internalization") {

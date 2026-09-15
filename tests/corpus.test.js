@@ -155,6 +155,30 @@ test("builds an entry with only learning extensions selected by the user", () =>
   assert.equal(entry.timestamp, "1:05");
 });
 
+test("preserves the timestamp-resolved contextual-gloss caption for later practice", () => {
+  const entry = corpus.buildCorpusEntry({
+    selection: {
+      source: "sidepanel-transcript", selectedText: "get into the zone",
+      targetText: "At night, I get into the zone more easily.", videoId: "abc123",
+      timestampSeconds: 60, videoTitle: "Study routine", channelName: "Daily English",
+      context: "I get into the zone after coffee. At night, I get into the zone more easily.",
+    },
+    gloss: {
+      label: "AI 语境释义", expression: "get into the zone", kind: "phrase",
+      suggestedUsageContexts: "学习", partOfSpeech: "verb phrase",
+      contextMeaningEn: "to focus", contextMeaningZh: "专注", collocations: [],
+      sentenceFrame: "I get into the zone when ...", spokenFrequency: "common",
+      frequencyReasonZh: "常用", paraphrases: [], relatedExtensions: [],
+    },
+    edits: {
+      expression: "get into the zone", kind: "phrase", spokenFrequency: "common",
+      selectedParaphraseIndexes: [], selectedRelatedExtensionIndexes: [],
+    },
+  });
+
+  assert.equal(entry.targetText, "At night, I get into the zone more easily.");
+});
+
 test("creates a stable safe video-note path and encoded append URI", () => {
   const path = corpus.buildVideoNotePath({
     folder: "YouTube English",

@@ -24,8 +24,21 @@ const YTD_PRACTICE = (() => {
       .filter(Boolean) || [];
   }
 
-  function expressionTokens(value) {
-    return cleanText(value, 300).toLocaleLowerCase().match(/[a-z]+(?:'[a-z]+)?|[\u4e00-\u9fff]+/g) || [];
+  function expressionTokens(value, limit = 300) {
+    return cleanText(value, limit).toLocaleLowerCase().match(/[a-z]+(?:'[a-z]+)?|[\u4e00-\u9fff]+/g) || [];
+  }
+
+  function inflectedExpressionSpan(source, expression) {
+    const targets = expressionTokens(expression).map(normalizeExpressionToken);
+    if (!targets.length) return null;
+    const words = [...cleanText(source, 4000).matchAll(/[a-z]+(?:'[a-z]+)?|[\u4e00-\u9fff]+/gi)]
+      .map((match) => ({ index: match.index, length: match[0].length, token: normalizeExpressionToken(match[0]) }));
+    for (let index = 0; index <= words.length - targets.length; index += 1) {
+      if (targets.every((token, offset) => words[index + offset].token === token)) {
+        return { index: words[index].index, length: words[index + targets.length - 1].index + words[index + targets.length - 1].length - words[index].index };
+      }
+    }
+    return null;
   }
 
   function normalizeExpressionToken(token) {
@@ -46,8 +59,34 @@ const YTD_PRACTICE = (() => {
   function sentenceHasExpressionTokens(sentence, expression) {
     const targets = expressionTokens(expression).map(normalizeExpressionToken);
     if (!targets.length) return false;
-    const words = new Set(expressionTokens(sentence).map(normalizeExpressionToken));
+    const words = new Set(expressionTokens(sentence, 4000).map(normalizeExpressionToken));
     return targets.every((token) => words.has(token));
+  }
+
+  function referenceUsesExpression(text, { selectedText, expression } = {}) {
+    const source = cleanText(text, 1000).toLocaleLowerCase();
+    const selected = cleanText(selectedText, 300).toLocaleLowerCase();
+    return Boolean(source && ((selected && source.includes(selected)) || sentenceHasExpressionTokens(source, expression)));
+  }
+
+  function referenceContextTokens(reference, selectedText, expression) {
+    const targetTokens = new Set([
+      ...expressionTokens(selectedText),
+      ...expressionTokens(expression),
+    ].map(normalizeExpressionToken));
+    return new Set(expressionTokens(reference)
+      .map(normalizeExpressionToken)
+      .filter((token) => !targetTokens.has(token)));
+  }
+
+  function referencesHaveDistinctContexts(references, { selectedText, expression } = {}) {
+    if (!Array.isArray(references) || references.length !== 3) return false;
+    const contexts = references.map((reference) => referenceContextTokens(reference, selectedText, expression));
+    if (contexts.some((context) => !context.size)) return false;
+    return contexts.every((left, index) => contexts.slice(index + 1).every((right) => {
+      const shared = [...left].filter((token) => right.has(token)).length;
+      return shared / Math.min(left.size, right.size) < 0.75;
+    }));
   }
 
   function shortestClause(text) {
@@ -57,15 +96,46 @@ const YTD_PRACTICE = (() => {
     return (clauses.sort((left, right) => left.length - right.length)[0] || cleanText(text, 320)).slice(0, 320);
   }
 
-  function extractAnswerSentence({ context, selectedText, expression } = {}) {
+  function boundedTargetWindow(text, selectedText, expression) {
+    const source = cleanText(text, 4000);
+    if (source.length <= 320) return source;
+    const lowerSource = source.toLocaleLowerCase();
+    const needles = [selectedText, expression]
+      .map((value) => cleanText(value, 300).toLocaleLowerCase())
+      .filter(Boolean);
+    const literalMatch = needles
+      .map((needle) => ({ index: lowerSource.indexOf(needle), length: needle.length }))
+      .find((candidate) => candidate.index >= 0);
+    const match = literalMatch || inflectedExpressionSpan(source, expression);
+    if (!match) return shortestClause(source);
+    const availableBefore = Math.floor((320 - match.length) / 2);
+    const start = Math.max(0, Math.min(match.index - availableBefore, source.length - 320));
+    return source.slice(start, start + 320).trim();
+  }
+
+  function answerForSentence(sentence, context, selectedText, expression) {
+    return sentence.length <= 320 || /[.!?。！？]/.test(sentence)
+      ? sentence
+      : boundedTargetWindow(context, selectedText, expression);
+  }
+
+  function extractAnswerSentence({ context, selectedText, expression, targetText } = {}) {
     const sentences = splitSentences(context);
+    const target = cleanText(targetText, 320).toLocaleLowerCase();
+    if (target) {
+      const anchored = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(target));
+      if (anchored && /[.!?。！？]/.test(anchored)) return anchored;
+      return cleanText(targetText, 320);
+    }
     const selected = cleanText(selectedText, 300).toLocaleLowerCase();
     if (selected) {
       const exact = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(selected));
-      if (exact) return exact;
+      if (exact) return answerForSentence(exact, context, selectedText, expression);
     }
     const expressionMatch = sentences.find((sentence) => sentenceHasExpressionTokens(sentence, expression));
-    return expressionMatch || shortestClause(context);
+    return expressionMatch
+      ? answerForSentence(expressionMatch, context, selectedText, expression)
+      : shortestClause(context);
   }
 
   function normalizeKey(value) {
@@ -90,6 +160,7 @@ const YTD_PRACTICE = (() => {
       timestampSeconds,
       timestampedUrl: cleanText(entry.timestampedUrl, 2000),
       selectedText: cleanText(entry.selectedText || entry.expression, 300),
+      targetText: cleanText(entry.targetText, 1800),
       context: cleanText(entry.context, 1800),
     };
   }
@@ -240,6 +311,8 @@ const YTD_PRACTICE = (() => {
     STAGES,
     PROFILES,
     extractAnswerSentence,
+    referenceUsesExpression,
+    referencesHaveDistinctContexts,
     mergePracticeHighlights,
     createSession,
     rateStage,

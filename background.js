@@ -1590,7 +1590,15 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
     return null;
   }
   if (!parsed || parsed.label !== "AI 练习材料" || !Array.isArray(selectedIds)) return null;
-  const allowedIds = new Set(selectedIds.filter((id) => typeof id === "string" && id));
+  const selectedItems = new Map(selectedIds
+    .map((item) => ({
+      id: practiceMaterialText(item?.id, 120),
+      expression: practiceMaterialText(item?.expression, 240),
+      selectedText: practiceMaterialText(item?.anchors?.[0]?.selectedText || item?.expression, 300),
+    }))
+    .filter((item) => item.id && item.expression && item.selectedText)
+    .map((item) => [item.id, item]));
+  const allowedIds = new Set(selectedItems.keys());
   const items = (Array.isArray(parsed.items) ? parsed.items : []).slice(0, 80)
     .map((item) => {
       const id = practiceMaterialText(item?.id, 120);
@@ -1601,12 +1609,15 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
         references: rawReferences.map((reference) => practiceMaterialText(reference, 320)),
       };
       const distinctReferences = new Set(internalization.references.map((reference) => reference.toLocaleLowerCase()));
+      const selectedItem = selectedItems.get(id);
       if (
         !allowedIds.has(id)
         || !internalization.promptZh
         || rawReferences.some((reference) => typeof reference !== "string" || reference.replace(/\s+/g, " ").trim().length > 320)
         || internalization.references.some((reference) => !reference)
         || distinctReferences.size !== 3
+        || internalization.references.some((reference) => !YTD_PRACTICE.referenceUsesExpression(reference, selectedItem))
+        || !YTD_PRACTICE.referencesHaveDistinctContexts(internalization.references, selectedItem)
       ) return null;
       return { id, internalization };
     })
@@ -1649,7 +1660,7 @@ async function handlePracticeMaterials(request) {
       responseFormat: { type: "json_object" },
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
     });
-    const materials = validatePracticeMaterials(text, highlights.map((item) => item.id));
+    const materials = validatePracticeMaterials(text, highlights);
     if (!materials || materials.items.length !== highlights.length) {
       return { success: false, error: "INVALID_AI_RESPONSE", message: "练习材料不完整，请重试。" };
     }
@@ -2113,6 +2124,7 @@ function normalizePracticeHighlightEntry(entry) {
     timestampSeconds,
     timestampedUrl: cleanPracticeHighlightText(entry.timestampedUrl, 2000),
     selectedText: cleanPracticeHighlightText(entry.selectedText || expression, 300),
+    targetText: cleanPracticeHighlightText(entry.targetText, 1800),
     context: cleanPracticeHighlightText(entry.context, 1800),
   };
 }

@@ -21,6 +21,7 @@ const YTD_CORPUS = (() => {
   function normalizeSelectionRequest(value) {
     if (!value || !SOURCES.has(value.source)) return null;
     const selectedText = normalizeWhitespace(value.selectedText, MAX_SELECTION_CHARS);
+    const targetText = normalizeWhitespace(value.targetText, 1800);
     const videoId = safeString(value.videoId, 100);
     const timestampSeconds = Number(value.timestampSeconds);
     if (!selectedText || !videoId || !Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
@@ -33,6 +34,7 @@ const YTD_CORPUS = (() => {
       timestampSeconds: Math.floor(timestampSeconds),
       videoTitle: normalizeWhitespace(value.videoTitle, 500),
       channelName: normalizeWhitespace(value.channelName, 300),
+      ...(targetText ? { targetText } : {}),
     };
   }
 
@@ -131,6 +133,7 @@ const YTD_CORPUS = (() => {
       channelName: normalizedSelection.channelName,
       source: normalizedSelection.source,
       context: normalizeWhitespace(selection.context, 1800),
+      ...(normalizedSelection.targetText ? { targetText: normalizedSelection.targetText } : {}),
       label: "AI 语境释义",
       partOfSpeech: normalizedGloss.partOfSpeech,
       contextMeaningEn: normalizedGloss.contextMeaningEn,

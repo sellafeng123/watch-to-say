@@ -11,12 +11,13 @@ test("reveals only the sentence containing the selected phrase", () => {
   }), "Then I got into the zone and finished.");
 });
 
-test("extracts the first matching sentence when a selected expression repeats", () => {
+test("uses the timestamp-resolved target caption when a selected expression repeats", () => {
   assert.equal(practice.extractAnswerSentence({
-    context: "I get into the zone after coffee. Music helps me get into the zone later.",
+    context: "I get into the zone after coffee. At night, I get into the zone more easily. Then I finish my work.",
     selectedText: "get into the zone",
     expression: "get into the zone",
-  }), "I get into the zone after coffee.");
+    targetText: "At night, I get into the zone more easily.",
+  }), "At night, I get into the zone more easily.");
 });
 
 test("extracts a matching final sentence after mixed English and Chinese terminators", () => {
@@ -43,12 +44,32 @@ test("retains sentence terminators including paired Chinese punctuation and quot
   }), "然后我们进入状态！");
 });
 
-test("returns an unpunctuated matching context intact", () => {
-  assert.equal(practice.extractAnswerSentence({
-    context: "After lunch I get into the zone and work without stopping",
+test("prefers the target caption and bounds a long unpunctuated context", () => {
+  const context = `Before caption ${"context ".repeat(90)}At night I get into the zone more easily ${"afterward ".repeat(90)}`;
+  const answer = practice.extractAnswerSentence({
+    context,
     selectedText: "get into the zone",
     expression: "get into the zone",
-  }), "After lunch I get into the zone and work without stopping");
+    targetText: "At night I get into the zone more easily",
+  });
+  assert.equal(answer, "At night I get into the zone more easily");
+  assert.ok(answer.length <= 320);
+});
+
+test("bounds an unpunctuated target window when no target caption was stored", () => {
+  const context = `${"before ".repeat(90)}I get into the zone while studying ${"after ".repeat(90)}`;
+  const answer = practice.extractAnswerSentence({ context, selectedText: "get into the zone", expression: "get into the zone" });
+  assert.match(answer, /get into the zone/);
+  assert.ok(answer.length <= 320);
+  assert.notEqual(answer, context);
+});
+
+test("centers an unpunctuated window on an inflected expression match", () => {
+  const context = `${"before ".repeat(90)}She keeps a notebook beside her desk ${"after ".repeat(90)}`;
+  const answer = practice.extractAnswerSentence({ context, selectedText: "missing selection", expression: "keep a notebook" });
+  assert.match(answer, /keeps a notebook/);
+  assert.ok(answer.length <= 320);
+  assert.notEqual(answer, context);
 });
 
 test("falls back to the shortest clause when the expression is absent", () => {
@@ -72,6 +93,7 @@ function highlight(overrides = {}) {
     timestampSeconds: 18,
     timestampedUrl: "https://www.youtube.com/watch?v=video-123&t=18s",
     selectedText: "get into the zone",
+    targetText: "I get into the zone after coffee.",
     context: "I get into the zone after coffee.",
     ...overrides,
   };
@@ -87,6 +109,7 @@ test("merges a same-expression same-POS highlight while retaining every source a
   assert.equal(highlights[0].expression, "Get into the zone");
   assert.equal(highlights[0].anchors.length, 2);
   assert.deepEqual(highlights[0].anchors.map((anchor) => anchor.timestampSeconds), [18, 74]);
+  assert.equal(highlights[0].anchors[0].targetText, "I get into the zone after coffee.");
 });
 
 test("keeps different parts of speech as independent practice highlights", () => {

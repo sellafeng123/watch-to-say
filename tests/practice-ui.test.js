@@ -40,6 +40,27 @@ test("listening reveals only its selected sentence and unlocks ratings after rev
   assert.deepEqual(ratings, ["review"]);
 });
 
+test("listening renders a bounded target caption as text rather than markup", () => {
+  const { root } = createFakeDom();
+  const context = `${"before ".repeat(90)}<img src=x onerror=alert(1)> get into the zone safely ${"after ".repeat(90)}`;
+  practiceUi.mountStage({
+    root,
+    stage: "listening",
+    item: {
+      expression: "get into the zone",
+      anchors: [{ selectedText: "get into the zone", targetText: "<img src=x onerror=alert(1)> get into the zone safely", context }],
+    },
+    position: 1,
+    total: 1,
+  });
+
+  click(root.querySelector(".practice-reveal"));
+  const answer = root.querySelector(".practice-answer");
+  assert.equal(answer.textContent, "参考答案<img src=x onerror=alert(1)> get into the zone safely");
+  assert.equal(answer.querySelector("img"), null);
+  assert.ok(answer.textContent.length <= 324);
+});
+
 test("internalization reveals exactly three ordered reference examples after speak-first gating", () => {
   const { root } = createFakeDom();
   practiceUi.mountStage({

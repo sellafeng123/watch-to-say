@@ -235,6 +235,16 @@ test("saves a prepared corpus entry as a same-video practice highlight without a
   assert.equal(storage.ytd_corpus_exports, undefined);
 });
 
+test("stores the timestamp-resolved target caption with a practice anchor", async () => {
+  const { helpers, storage } = loadPracticeHelpers();
+  await helpers.savePracticeHighlight(entry({
+    targetText: "At night, I get into the zone more easily.",
+    context: "I get into the zone after coffee. At night, I get into the zone more easily.",
+  }));
+
+  assert.equal(storage.ytd_practice_highlights_v1.abc123[0].anchors[0].targetText, "At night, I get into the zone more easily.");
+});
+
 test("merges same normalized expression and POS but preserves separate anchors", async () => {
   const { helpers, storage } = loadPracticeHelpers();
   await helpers.savePracticeHighlight(entry({ expression: "Get  into the zone", timestampSeconds: 18 }));
@@ -263,7 +273,7 @@ test("rejects malformed highlights instead of storing a broad unvalidated record
   assert.equal(storage.ytd_practice_highlights_v1, undefined);
 });
 
-test("keeps three distinct internalization references bounded to learner-selected highlight IDs", () => {
+test("keeps target-grounded internalization references bounded to learner-selected highlights", () => {
   const { helpers } = loadPracticeHelpers();
   const materials = helpers.validatePracticeMaterials(`{
     "label":"AI 练习材料",
@@ -271,7 +281,7 @@ test("keeps three distinct internalization references bounded to learner-selecte
       {"id":"practice-a","internalization":{"promptZh":"用真实场景各说两句。","references":["I get into the zone after coffee.","Music helps me get into the zone.","Once I get into the zone, I stop checking my phone."]}},
       {"id":"not-selected","internalization":{"promptZh":"ignore","references":["ignore one","ignore two","ignore three"]}}
     ]
-  }`, ["practice-a"]);
+  }`, [{ id: "practice-a", expression: "get into the zone", anchors: [{ selectedText: "got into the zone" }] }]);
 
   assert.deepEqual(JSON.parse(JSON.stringify(materials)), {
     label: "AI 练习材料",
@@ -289,28 +299,30 @@ test("keeps three distinct internalization references bounded to learner-selecte
   });
 });
 
-test("rejects incomplete, duplicate, empty, or overlong internalization references", () => {
+test("rejects incomplete, duplicate, empty, overlong, unrelated, or near-duplicate internalization references", () => {
   const { helpers } = loadPracticeHelpers();
   const valid = {
     id: "practice-a",
     internalization: {
       promptZh: "替换场景。",
-      references: ["First reference.", "Second reference.", "Third reference."],
+      references: ["I get into the zone after coffee.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone."],
     },
   };
   const invalidReferences = [
-    ["Only one."],
-    ["One.", "Two."],
-    ["One.", "Two.", "Three.", "Four."],
-    ["Same.", " same. ", "Different."],
-    ["First.", "", "Third."],
-    ["First.", "Second.", "x".repeat(321)],
+    ["I get into the zone."],
+    ["I get into the zone.", "Music helps me get into the zone."],
+    ["I get into the zone.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone.", "I get into the zone before work."],
+    ["I get into the zone after coffee.", " I get into the zone after coffee. ", "Music helps me get into the zone."],
+    ["I get into the zone after coffee.", "", "Music helps me get into the zone."],
+    ["I get into the zone after coffee.", "Music helps me get into the zone.", `I get into the zone ${"x".repeat(301)}`],
+    ["I drink tea before work.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone."],
+    ["I get into the zone after coffee before work.", "I get into the zone after coffee before work every day.", "Once I get into the zone, I stop checking my phone."],
   ];
   invalidReferences.forEach((references) => {
     assert.equal(helpers.validatePracticeMaterials({
       label: "AI 练习材料",
       items: [{ ...valid, internalization: { ...valid.internalization, references } }],
-    }, ["practice-a"]), null);
+    }, [{ id: "practice-a", expression: "get into the zone", anchors: [{ selectedText: "got into the zone" }] }]), null);
   });
 });
 
