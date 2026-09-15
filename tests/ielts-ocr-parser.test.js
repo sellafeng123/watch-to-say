@@ -38,6 +38,16 @@ function approvedReview(pages, overrides = {}) {
   };
 }
 
+function pagesWithExpectedCount(pages, expectedPageCount = 46) {
+  const present = new Set(pages.map((page) => page.page));
+  return [
+    ...pages,
+    ...Array.from({ length: expectedPageCount }, (_, index) => index + 1)
+      .filter((page) => !present.has(page))
+      .map((page) => ({ page, lines: [] })),
+  ];
+}
+
 async function parseFixture() {
   const { parseIeltsOcrPages } = await import(parserUrl.href);
   return parseIeltsOcrPages(fixture, {
@@ -311,7 +321,8 @@ test("keeps the left edge first when OCR fragments share a visual row", async ()
 
 test("applies an approved reviewed correction and stamps the bank", async () => {
   const { parseIeltsOcrPages } = await import(parserUrl.href);
-  const review = approvedReview(fixture, {
+  const completeFixture = pagesWithExpectedCount(fixture);
+  const review = approvedReview(completeFixture, {
     corrections: [{
       operation: "replace",
       page: 2,
@@ -319,7 +330,7 @@ test("applies an approved reviewed correction and stamps the bank", async () => 
       replacement: "3. Is this a reviewed source question?",
     }],
   });
-  const result = parseIeltsOcrPages(fixture, {
+  const result = parseIeltsOcrPages(completeFixture, {
     id: "ielts-2026-09_12",
     season: "2026-09_12",
     review,
@@ -330,12 +341,60 @@ test("applies an approved reviewed correction and stamps the bank", async () => 
     status: "approved",
     schemaVersion: 1,
     sourcePdfSha256: "a".repeat(64),
-    ocrSha256: digest(fixture),
-    pageCount: 3,
-    reviewedPageCount: 3,
+    ocrSha256: digest(completeFixture),
+    pageCount: 46,
+    reviewedPageCount: 46,
     correctionsApplied: 1,
     reviewedAt: "2026-09-15T12:00:00.000Z",
   });
+});
+
+test("rejects an approved review that is self-consistent but omits page 46", async () => {
+  const { parseIeltsOcrPages } = await import(parserUrl.href);
+  const pages = Array.from({ length: 45 }, (_, index) => ({ page: index + 1, lines: [] }));
+
+  assert.throws(
+    () => parseIeltsOcrPages(pages, { review: approvedReview(pages) }),
+    /expected 46 OCR pages numbered 1 through 46/i,
+  );
+});
+
+test("complete-bank validation requires every Part 3 question to link to a cue card", async () => {
+  const { parseIeltsOcrPages, validateCompleteIeltsBank } = await import(parserUrl.href);
+  const completeFixture = pagesWithExpectedCount(fixture);
+  const bank = parseIeltsOcrPages(completeFixture, {
+    id: "ielts-test",
+    review: approvedReview(completeFixture),
+  });
+  bank.questions.find((question) => question.part === "part3").parentCueCardId = null;
+
+  assert.throws(() => validateCompleteIeltsBank(bank), /Part 3 question .*requires a parentCueCardId/i);
+});
+
+test("rejects chained corrections that target a replacement instead of original OCR", async () => {
+  const { parseIeltsOcrPages } = await import(parserUrl.href);
+  const completeFixture = pagesWithExpectedCount(fixture);
+  const review = approvedReview(completeFixture, {
+    corrections: [
+      {
+        operation: "replace",
+        page: 2,
+        original: "3. This numbered sentence has no question mark",
+        replacement: "3. Is this a reviewed source question?",
+      },
+      {
+        operation: "replace",
+        page: 2,
+        original: "3. Is this a reviewed source question?",
+        replacement: "3. Is this a chained reviewed source question?",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => parseIeltsOcrPages(completeFixture, { review }),
+    /must target one immutable original OCR line exactly once/i,
+  );
 });
 
 test("CLI fails closed without complete approved review and all three Parts", () => {
@@ -343,14 +402,15 @@ test("CLI fails closed without complete approved review and all three Parts", ()
   const input = path.join(directory, "ocr.json");
   const output = path.join(directory, "bank.json");
   const reviewPath = path.join(directory, "review.json");
-  fs.writeFileSync(input, JSON.stringify(fixture));
+  const completeFixture = pagesWithExpectedCount(fixture);
+  fs.writeFileSync(input, JSON.stringify(completeFixture));
 
   const withoutReview = spawnSync(process.execPath, [parserPath, input, output], { encoding: "utf8" });
   assert.notEqual(withoutReview.status, 0);
   assert.match(withoutReview.stderr, /approved review artifact is required/i);
   assert.equal(fs.existsSync(output), false);
 
-  fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(fixture, {
+  fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(completeFixture, {
     status: "draft",
   })));
   const draft = spawnSync(process.execPath, [parserPath, input, output, reviewPath], { encoding: "utf8" });
@@ -358,7 +418,7 @@ test("CLI fails closed without complete approved review and all three Parts", ()
   assert.match(draft.stderr, /review status must be approved/i);
   assert.equal(fs.existsSync(output), false);
 
-  const pendingPage = approvedReview(fixture);
+  const pendingPage = approvedReview(completeFixture);
   pendingPage.reviewedPages[1].status = "pending";
   fs.writeFileSync(reviewPath, JSON.stringify(pendingPage));
   const pending = spawnSync(process.execPath, [parserPath, input, output, reviewPath], { encoding: "utf8" });
@@ -366,7 +426,7 @@ test("CLI fails closed without complete approved review and all three Parts", ()
   assert.match(pending.stderr, /Page 2 is not marked reviewed/i);
   assert.equal(fs.existsSync(output), false);
 
-  const noPart3 = fixture.slice(0, 2);
+  const noPart3 = pagesWithExpectedCount(fixture.slice(0, 2));
   fs.writeFileSync(input, JSON.stringify(noPart3));
   fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(noPart3)));
   const incomplete = spawnSync(process.execPath, [parserPath, input, output, reviewPath], { encoding: "utf8" });
@@ -379,9 +439,10 @@ test("CLI fails closed without complete approved review and all three Parts", ()
 
 test("complete-bank validation rejects a dangling Part 3 parent", async () => {
   const { parseIeltsOcrPages, validateCompleteIeltsBank } = await import(parserUrl.href);
-  const bank = parseIeltsOcrPages(fixture, {
+  const completeFixture = pagesWithExpectedCount(fixture);
+  const bank = parseIeltsOcrPages(completeFixture, {
     id: "ielts-test",
-    review: approvedReview(fixture),
+    review: approvedReview(completeFixture),
   });
   const part3 = bank.questions.find((question) => question.part === "part3");
   part3.parentCueCardId = "missing-cue-card";
@@ -402,7 +463,7 @@ test("CLI rejects non-array and zero-question input before writing output", () =
   assert.match(malformed.stderr, /pages must be a non-empty array/i);
   assert.equal(fs.existsSync(output), false);
 
-  const empty = [{ page: 1, lines: [] }];
+  const empty = pagesWithExpectedCount([{ page: 1, lines: [] }]);
   fs.writeFileSync(input, JSON.stringify(empty));
   fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(empty)));
   const zero = spawnSync(process.execPath, [parserPath, input, output, reviewPath], { encoding: "utf8" });
@@ -418,8 +479,9 @@ test("CLI writes only a complete approved bank with valid parent links", () => {
   const input = path.join(directory, "ocr.json");
   const output = path.join(directory, "bank.json");
   const reviewPath = path.join(directory, "review.json");
-  fs.writeFileSync(input, JSON.stringify(fixture));
-  fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(fixture)));
+  const completeFixture = pagesWithExpectedCount(fixture);
+  fs.writeFileSync(input, JSON.stringify(completeFixture));
+  fs.writeFileSync(reviewPath, JSON.stringify(approvedReview(completeFixture)));
 
   const result = spawnSync(process.execPath, [parserPath, input, output, reviewPath], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);

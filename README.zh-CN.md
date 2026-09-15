@@ -48,6 +48,16 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 
 在 **Settings** 中填写本机 Obsidian Vault 的准确名称和可选文件夹（默认是 `YouTube English`）。只有点击导出按钮后，扩展才会发起 `obsidian://new` 追加请求；实际的本地文件操作由 Obsidian 完成，因此打开后请在 Obsidian 中确认结果。
 
+## 本地 IELTS OCR 工作流（仅 macOS）
+
+这个开发工具使用 macOS 的 PDFKit、Vision 和 AppKit。它不属于公开扩展包；PDF、OCR、中间审核文件和生成的题库都必须只留在本地，并保持 Git 忽略。
+
+1. 用 `npm run ocr:ielts -- INPUT.pdf tmp/ielts-ocr-YYYY-MM_DD.json` 生成私有 OCR 中间文件。
+2. 渲染并检查每一页源 PDF。在被忽略的 `data/ielts-ocr-review-YYYY-MM_DD.json` 审核文件中记录页码和 OCR 摘要，以及针对源文件的替换。不要手动编辑生成的题库。
+3. 只从已审核的输入重新生成：`node scripts/parse-ielts-ocr.mjs INPUT.json data/ielts-question-bank.local.json REVIEW.json`。解析器只有在 46 页 OCR 都已审核且审核文件状态为 approved 时才会写入本地题库。
+
+普通 Swift 命令要求 Xcode 或 Command Line Tools 的编译器与 macOS SDK 相匹配。这个主机当前的 Swift 是 6.3.3，而默认 SDK 接口由 6.3.2 构建，因此在修复或更新 Command Line Tools/Xcode 前，普通命令会失败。请使用正常匹配的 macOS 工具链，不要把临时的本地编译绕过方案当作项目默认做法。
+
 ## 让你的编程 Agent 帮你安装
 
 你不需要看懂代码，也不需要会使用命令行。把下面这段话发送给你的编程 Agent：

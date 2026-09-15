@@ -46,6 +46,16 @@ This is AI-generated learner guidance, not a quotation from a dictionary. It wor
 
 In **Settings**, fill in the exact name of the local Obsidian Vault and an optional folder (the default is `YouTube English`). The extension prepares an `obsidian://new` append request only after you click the export button. Obsidian, not the extension, performs the local file operation, so confirm the result in Obsidian after it opens.
 
+## Local IELTS OCR workflow (macOS only)
+
+This development tool uses macOS PDFKit, Vision, and AppKit. It is not part of the public extension package, and its PDF, OCR, review, and generated-bank files must stay local and Git-ignored.
+
+1. Create the private OCR intermediate with `npm run ocr:ielts -- INPUT.pdf tmp/ielts-ocr-YYYY-MM_DD.json`.
+2. Render and inspect every source page. Record page and OCR digests plus any source-specific replacements in an ignored `data/ielts-ocr-review-YYYY-MM_DD.json` review artifact. Do not edit the generated bank by hand.
+3. Regenerate only from the reviewed inputs: `node scripts/parse-ielts-ocr.mjs INPUT.json data/ielts-question-bank.local.json REVIEW.json`. The parser requires all 46 reviewed OCR pages and an approved review artifact before it writes a local bank.
+
+The normal Swift command requires a matched Xcode or Command Line Tools compiler and macOS SDK. This host currently has Swift 6.3.3 with default SDK interfaces built for 6.3.2, so the ordinary command fails until Command Line Tools or Xcode is repaired or updated. Use a normally matched macOS toolchain; do not treat temporary local compile workarounds as the project default.
+
 ## Install with your coding agent
 
 You do not need to understand the code or use the command line. Send this message to your coding agent:

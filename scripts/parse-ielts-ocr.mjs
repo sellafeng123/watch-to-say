@@ -11,6 +11,7 @@ const questionBank = require("../question-bank.js");
 const LOW_CONFIDENCE = 0.75;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const VISUAL_ROW_TOLERANCE = 0.004;
+const DEFAULT_APPROVED_PAGE_COUNT = 46;
 
 function cleanText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -49,7 +50,7 @@ function digest(value) {
   return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
-function validatePageRecords(pages) {
+function validatePageRecords(pages, expectedPageCount = null) {
   if (!Array.isArray(pages) || pages.length === 0) {
     throw new Error("OCR pages must be a non-empty array.");
   }
@@ -60,6 +61,14 @@ function validatePageRecords(pages) {
     }
     if (seen.has(page.page)) throw new Error(`Duplicate OCR page record: ${page.page}.`);
     seen.add(page.page);
+  }
+  if (expectedPageCount !== null) {
+    if (!Number.isInteger(expectedPageCount) || expectedPageCount < 1) {
+      throw new Error("Expected OCR page count must be a positive integer.");
+    }
+    if (pages.length !== expectedPageCount || [...Array(expectedPageCount).keys()].some((index) => !seen.has(index + 1))) {
+      throw new Error(`Expected ${expectedPageCount} OCR pages numbered 1 through ${expectedPageCount}.`);
+    }
   }
 }
 
@@ -97,22 +106,26 @@ function applyReviewedCorrections(pages, review) {
     ...page,
     lines: page.lines.map((line) => ({ ...line })),
   }));
+  const originalByNumber = new Map(pages.map((page) => [page.page, page]));
   const correctedByNumber = new Map(corrected.map((page) => [page.page, page]));
   const corrections = Array.isArray(review.corrections) ? review.corrections : [];
+  const correctedTargets = new Set();
   for (const correction of corrections) {
     if (correction?.operation !== "replace") {
       throw new Error(`Unsupported review correction operation on page ${correction?.page ?? "unknown"}.`);
     }
+    const originalPage = originalByNumber.get(correction.page);
     const page = correctedByNumber.get(correction.page);
     const original = cleanText(correction.original);
     const replacement = cleanText(correction.replacement);
-    if (!page || !original || !replacement) throw new Error("Review replacements require page, original, and replacement.");
-    const matches = page.lines
+    if (!page || !originalPage || !original || !replacement) throw new Error("Review replacements require page, original, and replacement.");
+    const matches = originalPage.lines
       .map((line, index) => cleanText(line.text) === original ? index : -1)
       .filter((index) => index >= 0);
-    if (matches.length !== 1) {
-      throw new Error(`Review replacement on page ${correction.page} matched ${matches.length} lines; expected 1.`);
+    if (matches.length !== 1 || correctedTargets.has(`${correction.page}:${matches[0]}`)) {
+      throw new Error(`Review replacement on page ${correction.page} must target one immutable original OCR line exactly once.`);
     }
+    correctedTargets.add(`${correction.page}:${matches[0]}`);
     page.lines[matches[0]].text = replacement;
   }
 
@@ -179,6 +192,9 @@ export function validateCompleteIeltsBank(bank, { requireApproval = true } = {})
     byId.set(question.id, question);
   }
   for (const question of bank.questions) {
+    if (question.part === "part3" && !cleanText(question.parentCueCardId)) {
+      throw new Error(`Part 3 question ${question.id} requires a parentCueCardId.`);
+    }
     if (!question.parentCueCardId) continue;
     const parent = byId.get(question.parentCueCardId);
     if (!parent || parent.part !== "part2") {
@@ -189,7 +205,7 @@ export function validateCompleteIeltsBank(bank, { requireApproval = true } = {})
 }
 
 export function parseIeltsOcrPages(pages, bankMeta = {}) {
-  validatePageRecords(pages);
+  validatePageRecords(pages, bankMeta.review ? DEFAULT_APPROVED_PAGE_COUNT : null);
   const reviewed = bankMeta.review
     ? applyReviewedCorrections(pages, bankMeta.review)
     : { pages, approval: null };
