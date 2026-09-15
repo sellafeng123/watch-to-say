@@ -16,6 +16,58 @@ const YTD_PRACTICE = (() => {
     return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
   }
 
+  function splitSentences(value) {
+    const text = cleanText(value, 4000);
+    if (!text) return [];
+    return text.match(/[^.!?。！？]+(?:[.!?。！？]+["'”’）】》]*)|[^.!?。！？]+$/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) || [];
+  }
+
+  function expressionTokens(value) {
+    return cleanText(value, 300).toLocaleLowerCase().match(/[a-z]+(?:'[a-z]+)?|[\u4e00-\u9fff]+/g) || [];
+  }
+
+  function normalizeExpressionToken(token) {
+    const value = token.toLocaleLowerCase();
+    const irregular = { got: "get", gotten: "get", went: "go", gone: "go", did: "do", done: "do", was: "be", were: "be" };
+    if (irregular[value]) return irregular[value];
+    if (value.endsWith("ies") && value.length > 4) return `${value.slice(0, -3)}y`;
+    if (value.endsWith("ing") && value.length > 5) {
+      const base = value.slice(0, -3);
+      return base.length > 2 && base.at(-1) === base.at(-2) ? base.slice(0, -1) : base;
+    }
+    if (value.endsWith("ed") && value.length > 4) return value.slice(0, -2);
+    if (value.endsWith("es") && value.length > 4) return value.slice(0, -2);
+    if (value.endsWith("s") && value.length > 3) return value.slice(0, -1);
+    return value;
+  }
+
+  function sentenceHasExpressionTokens(sentence, expression) {
+    const targets = expressionTokens(expression).map(normalizeExpressionToken);
+    if (!targets.length) return false;
+    const words = new Set(expressionTokens(sentence).map(normalizeExpressionToken));
+    return targets.every((token) => words.has(token));
+  }
+
+  function shortestClause(text) {
+    const clauses = cleanText(text, 4000).match(/[^,;:，；：.!?。！？]+[,;:，；：.!?。！？]*/g)
+      ?.map((clause) => clause.trim())
+      .filter(Boolean) || [];
+    return (clauses.sort((left, right) => left.length - right.length)[0] || cleanText(text, 320)).slice(0, 320);
+  }
+
+  function extractAnswerSentence({ context, selectedText, expression } = {}) {
+    const sentences = splitSentences(context);
+    const selected = cleanText(selectedText, 300).toLocaleLowerCase();
+    if (selected) {
+      const exact = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(selected));
+      if (exact) return exact;
+    }
+    const expressionMatch = sentences.find((sentence) => sentenceHasExpressionTokens(sentence, expression));
+    return expressionMatch || shortestClause(context);
+  }
+
   function normalizeKey(value) {
     return cleanText(value, 300).toLocaleLowerCase();
   }
@@ -187,6 +239,7 @@ const YTD_PRACTICE = (() => {
   return {
     STAGES,
     PROFILES,
+    extractAnswerSentence,
     mergePracticeHighlights,
     createSession,
     rateStage,

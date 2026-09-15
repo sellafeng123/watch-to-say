@@ -3,6 +3,62 @@ const assert = require("node:assert/strict");
 
 const practice = require("../practice-session.js");
 
+test("reveals only the sentence containing the selected phrase", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "I was tired. Then I got into the zone and finished. That felt great.",
+    selectedText: "got into the zone",
+    expression: "get into the zone",
+  }), "Then I got into the zone and finished.");
+});
+
+test("extracts the first matching sentence when a selected expression repeats", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "I get into the zone after coffee. Music helps me get into the zone later.",
+    selectedText: "get into the zone",
+    expression: "get into the zone",
+  }), "I get into the zone after coffee.");
+});
+
+test("extracts a matching final sentence after mixed English and Chinese terminators", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "Wait! Are you ready? 前面没有目标。最后我进入状态。",
+    selectedText: "进入状态",
+    expression: "进入状态",
+  }), "最后我进入状态。");
+});
+
+test("finds expression tokens across inflections when the selected text is unavailable", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "I write notes. She keeps a notebook beside her desk! It helps.",
+    selectedText: "unavailable selection",
+    expression: "keep a notebook",
+  }), "She keeps a notebook beside her desk!");
+});
+
+test("retains sentence terminators including paired Chinese punctuation and quoted punctuation", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "他说：“准备好了吗？” 然后我们进入状态！最后回家。",
+    selectedText: "进入状态",
+    expression: "进入状态",
+  }), "然后我们进入状态！");
+});
+
+test("returns an unpunctuated matching context intact", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "After lunch I get into the zone and work without stopping",
+    selectedText: "get into the zone",
+    expression: "get into the zone",
+  }), "After lunch I get into the zone and work without stopping");
+});
+
+test("falls back to the shortest clause when the expression is absent", () => {
+  assert.equal(practice.extractAnswerSentence({
+    context: "This opening clause is deliberately much longer, short fallback clause; another longer clause follows.",
+    selectedText: "not present",
+    expression: "also absent",
+  }), "short fallback clause;");
+});
+
 function highlight(overrides = {}) {
   return {
     videoId: "video-123",

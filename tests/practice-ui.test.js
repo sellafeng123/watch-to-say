@@ -5,22 +5,65 @@ const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
 const practiceUi = require("../practice-ui.js");
+globalThis.YTD_PRACTICE = require("../practice-session.js");
+const { createFakeDom, click } = require("./helpers/fake-dom.js");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("uses a different contextual internalization instruction for every expression type", () => {
-  assert.match(practiceUi.internalizationGuidance("word"), /搭配.*真实场景/);
-  assert.match(practiceUi.internalizationGuidance("phrase"), /保留.*替换/);
-  assert.match(practiceUi.internalizationGuidance("sentence_frame"), /保留框架.*补全/);
+test("asks learners to say two sentences for every internalization expression type", () => {
+  ["word", "phrase", "sentence_frame"].forEach((kind) => {
+    assert.match(practiceUi.internalizationGuidance(kind), /两句/);
+  });
 });
 
-test("practice stages preserve speak first, reveal, then self-rate", () => {
-  const source = read("practice-ui.js");
-  assert.match(source, /先在口中完成，再显示参考答案/);
-  assert.match(source, /显示答案/);
-  assert.match(source, /我会/);
-  assert.match(source, /还不会/);
-  assert.match(source, /ratingActions\.hidden = true/);
-  assert.match(source, /answer\.hidden = false;[\s\S]*ratingActions\.hidden = false/);
+test("listening reveals only its selected sentence and unlocks ratings after reveal", () => {
+  const { root } = createFakeDom();
+  const ratings = [];
+  practiceUi.mountStage({
+    root,
+    stage: "listening",
+    item: {
+      expression: "get into the zone",
+      anchors: [{ timestamp: "0:18", timestampSeconds: 18, selectedText: "got into the zone", context: "I was tired. Then I got into the zone and finished. That felt great." }],
+    },
+    position: 1,
+    total: 1,
+    onRate: (rating) => ratings.push(rating),
+  });
+
+  assert.equal(root.querySelector(".practice-reveal").textContent, "显示答案");
+  assert.equal(root.querySelector(".practice-answer").hidden, true);
+  assert.equal(root.querySelector(".practice-rating-actions").hidden, true);
+  click(root.querySelector(".practice-reveal"));
+  assert.equal(root.querySelector(".practice-answer").textContent, "参考答案Then I got into the zone and finished.");
+  assert.equal(root.querySelector(".practice-rating-actions").hidden, false);
+  click(root.querySelector(".practice-rating-actions").querySelectorAll("button")[0]);
+  assert.deepEqual(ratings, ["review"]);
+});
+
+test("internalization reveals exactly three ordered reference examples after speak-first gating", () => {
+  const { root } = createFakeDom();
+  practiceUi.mountStage({
+    root,
+    stage: "internalization",
+    item: { expression: "get into the zone", kind: "phrase", anchors: [{ timestamp: "0:18" }] },
+    material: {
+      internalization: {
+        promptZh: "用真实场景各说两句。",
+        references: ["I get into the zone after coffee.", "Music helps me get into the zone.", "Once I get into the zone, I stop checking my phone."],
+      },
+    },
+    position: 1,
+    total: 1,
+  });
+
+  assert.match(root.textContent, /先在口中完成，再显示参考答案/);
+  assert.equal(root.querySelector(".practice-reveal").textContent, "表达参考");
+  assert.equal(root.querySelector(".practice-answer").hidden, true);
+  assert.equal(root.querySelector(".practice-answer").querySelectorAll("li").length, 3);
+  click(root.querySelector(".practice-reveal"));
+  assert.equal(root.querySelector(".practice-answer").textContent, "表达参考I get into the zone after coffee.Music helps me get into the zone.Once I get into the zone, I stop checking my phone.");
+  assert.equal(root.querySelector(".practice-answer").querySelectorAll("li").length, 3);
+  assert.equal(root.querySelector(".practice-rating-actions").hidden, false);
 });
 
 test("side panel loads the practice UI before its orchestrator", () => {

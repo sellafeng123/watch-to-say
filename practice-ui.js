@@ -8,10 +8,10 @@ const YTD_PRACTICE_UI = (() => {
 
   function internalizationGuidance(kind) {
     return {
-      word: "先说一个常见搭配，再用自己的真实场景造句。",
-      phrase: "保留这个词伙，替换人物、时间或情境。",
-      sentence_frame: "保留框架，用自己的内容补全或重写。",
-    }[kind] || "保留核心表达，用自己的真实场景造句。";
+      word: "先说一个常见搭配，再用自己的真实场景说两句。",
+      phrase: "保留这个词伙，替换人物、时间或情境，各说两句。",
+      sentence_frame: "保留框架，用自己的内容补全或重写，各说两句。",
+    }[kind] || "保留核心表达，用自己的真实场景说两句。";
   }
 
   function stageTitle(stage, isRetry) {
@@ -97,14 +97,26 @@ const YTD_PRACTICE_UI = (() => {
     seek.type = "button";
     seek.addEventListener("click", () => onSeek?.(anchor.timestampSeconds || 0));
     card.append(seek);
-    const reveal = el(documentRef, "button", "practice-secondary practice-reveal", "显示答案");
+    const revealCopy = stage === "internalization" ? "表达参考" : "显示答案";
+    const reveal = el(documentRef, "button", "practice-secondary practice-reveal", revealCopy);
     reveal.type = "button";
     const answer = el(documentRef, "div", "practice-answer");
     answer.hidden = true;
-    const reference = stage === "listening" ? (anchor.context || anchor.selectedText || item.expression)
-      : stage === "internalization" ? material?.internalization?.reference
-        : material?.speaking?.reference;
-    answer.append(el(documentRef, "strong", "", "参考答案"), el(documentRef, "p", "", reference || item.expression));
+    if (stage === "listening") {
+      const reference = globalThis.YTD_PRACTICE?.extractAnswerSentence?.({
+        context: anchor.context,
+        selectedText: anchor.selectedText,
+        expression: item.expression,
+      }) || anchor.selectedText || item.expression;
+      answer.append(el(documentRef, "strong", "", "参考答案"), el(documentRef, "p", "", reference));
+    } else if (stage === "internalization") {
+      const references = Array.isArray(material?.internalization?.references) ? material.internalization.references : [];
+      const list = el(documentRef, "ol", "practice-reference-list");
+      references.forEach((reference) => list.append(el(documentRef, "li", "", reference)));
+      answer.append(el(documentRef, "strong", "", "表达参考"), list);
+    } else {
+      answer.append(el(documentRef, "strong", "", "参考答案"), el(documentRef, "p", "", item.expression));
+    }
     const ratingActions = el(documentRef, "div", "practice-actions practice-rating-actions");
     ratingActions.hidden = true;
     const mastered = el(documentRef, "button", "practice-primary", "我会");

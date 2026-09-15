@@ -263,40 +263,55 @@ test("rejects malformed highlights instead of storing a broad unvalidated record
   assert.equal(storage.ytd_practice_highlights_v1, undefined);
 });
 
-test("keeps AI practice materials bounded to the learner-selected highlight IDs", () => {
+test("keeps three distinct internalization references bounded to learner-selected highlight IDs", () => {
   const { helpers } = loadPracticeHelpers();
   const materials = helpers.validatePracticeMaterials(`{
     "label":"AI 练习材料",
     "items":[
-      {"id":"practice-a","internalization":{"promptZh":"先替换一个真实场景。","reference":"I get into the zone when I study."},"speaking":{"question":"How do you focus?","reference":"I get into the zone after coffee."}},
-      {"id":"not-selected","internalization":{"promptZh":"ignore","reference":"ignore"},"speaking":{"question":"ignore","reference":"ignore"}}
-    ],
-    "synthesis":{"itemIds":["practice-a","not-selected"],"question":"Tell a story.","reference":"I get into the zone."}
+      {"id":"practice-a","internalization":{"promptZh":"用真实场景各说两句。","references":["I get into the zone after coffee.","Music helps me get into the zone.","Once I get into the zone, I stop checking my phone."]}},
+      {"id":"not-selected","internalization":{"promptZh":"ignore","references":["ignore one","ignore two","ignore three"]}}
+    ]
   }`, ["practice-a"]);
 
   assert.deepEqual(JSON.parse(JSON.stringify(materials)), {
     label: "AI 练习材料",
     items: [{
       id: "practice-a",
-      internalization: { promptZh: "先替换一个真实场景。", reference: "I get into the zone when I study." },
-      speaking: { question: "How do you focus?", reference: "I get into the zone after coffee." },
+      internalization: {
+        promptZh: "用真实场景各说两句。",
+        references: [
+          "I get into the zone after coffee.",
+          "Music helps me get into the zone.",
+          "Once I get into the zone, I stop checking my phone.",
+        ],
+      },
     }],
-    synthesis: null,
   });
 });
 
-test("rejects duplicate AI items that leave a selected expression without practice material", () => {
+test("rejects incomplete, duplicate, empty, or overlong internalization references", () => {
   const { helpers } = loadPracticeHelpers();
-  const repeated = {
+  const valid = {
     id: "practice-a",
-    internalization: { promptZh: "替换场景。", reference: "I get into the zone." },
-    speaking: { question: "How do you focus?", reference: "I get into the zone." },
+    internalization: {
+      promptZh: "替换场景。",
+      references: ["First reference.", "Second reference.", "Third reference."],
+    },
   };
-  assert.equal(helpers.validatePracticeMaterials({
-    label: "AI 练习材料",
-    items: [repeated, repeated],
-    synthesis: null,
-  }, ["practice-a", "practice-b"]), null);
+  const invalidReferences = [
+    ["Only one."],
+    ["One.", "Two."],
+    ["One.", "Two.", "Three.", "Four."],
+    ["Same.", " same. ", "Different."],
+    ["First.", "", "Third."],
+    ["First.", "Second.", "x".repeat(321)],
+  ];
+  invalidReferences.forEach((references) => {
+    assert.equal(helpers.validatePracticeMaterials({
+      label: "AI 练习材料",
+      items: [{ ...valid, internalization: { ...valid.internalization, references } }],
+    }, ["practice-a"]), null);
+  });
 });
 
 test("practice material generation refuses to run without a configured DeepSeek key", async () => {

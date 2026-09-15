@@ -1594,31 +1594,28 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
   const items = (Array.isArray(parsed.items) ? parsed.items : []).slice(0, 80)
     .map((item) => {
       const id = practiceMaterialText(item?.id, 120);
+      const rawReferences = item?.internalization?.references;
+      if (!Array.isArray(rawReferences) || rawReferences.length !== 3) return null;
       const internalization = {
         promptZh: practiceMaterialText(item?.internalization?.promptZh, 600),
-        reference: practiceMaterialText(item?.internalization?.reference, 1000),
+        references: rawReferences.map((reference) => practiceMaterialText(reference, 320)),
       };
-      const speaking = {
-        question: practiceMaterialText(item?.speaking?.question, 600),
-        reference: practiceMaterialText(item?.speaking?.reference, 1200),
-      };
-      if (!allowedIds.has(id) || !internalization.promptZh || !internalization.reference || !speaking.question || !speaking.reference) return null;
-      return { id, internalization, speaking };
+      const distinctReferences = new Set(internalization.references.map((reference) => reference.toLocaleLowerCase()));
+      if (
+        !allowedIds.has(id)
+        || !internalization.promptZh
+        || rawReferences.some((reference) => typeof reference !== "string" || reference.replace(/\s+/g, " ").trim().length > 320)
+        || internalization.references.some((reference) => !reference)
+        || distinctReferences.size !== 3
+      ) return null;
+      return { id, internalization };
     })
     .filter(Boolean);
   const returnedIds = new Set(items.map((item) => item.id));
   if (items.length !== allowedIds.size || returnedIds.size !== allowedIds.size) return null;
-  const synthesisIds = (Array.isArray(parsed.synthesis?.itemIds) ? parsed.synthesis.itemIds : [])
-    .filter((id) => allowedIds.has(id))
-    .slice(0, 3);
-  const synthesisQuestion = practiceMaterialText(parsed.synthesis?.question, 600);
-  const synthesisReference = practiceMaterialText(parsed.synthesis?.reference, 1200);
   return {
     label: "AI 练习材料",
     items,
-    synthesis: synthesisIds.length >= 2 && synthesisQuestion && synthesisReference
-      ? { itemIds: synthesisIds, question: synthesisQuestion, reference: synthesisReference }
-      : null,
   };
 }
 
@@ -1648,7 +1645,7 @@ async function handlePracticeMaterials(request) {
     const userPrompt = await loadPromptSection("expression-practice.md", "User prompt", variables);
     const { text } = await requestAiCompletion({
       temperature: 0.3,
-      maxTokens: Math.min(5000, 500 + highlights.length * 320),
+      maxTokens: Math.min(5000, 800 + highlights.length * 480),
       responseFormat: { type: "json_object" },
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
     });
