@@ -134,6 +134,33 @@ test("validates whitespace-normalized imported question and cue points from the 
   });
 });
 
+test("forces parsed records into the learner bank instead of accepting model source metadata", () => {
+  const parsed = bank.validateParsedBank({
+    label: "AI 题库识别",
+    questions: [{
+      bankId: "bundled-bank",
+      source: "bundled_ielts",
+      profiles: ["ielts"],
+      part: "part1",
+      topic: "Home",
+      question: "Do you like your home?",
+      cuePoints: [],
+    }],
+    unrecognized: [],
+  }, {
+    id: "learner-bank",
+    name: "My bank",
+    profiles: ["ielts"],
+  }, "Do you like your home?");
+
+  assert.equal(parsed.bank.questions[0].bankId, "learner-bank");
+  assert.equal(parsed.bank.questions[0].source, "learner_bank");
+  assert.deepEqual(parsed.bank.questions[0].profiles, ["ielts"]);
+  assert.deepEqual(bank.eligibleQuestions({
+    banks: [parsed.bank], bundledBank: null, profile: "ielts", sourceMode: "bundled", usedQuestionIds: [],
+  }), []);
+});
+
 test("IELTS source modes only return stored bundled or learner questions", () => {
   const bundledBank = bank.normalizeBank({
     id: "bundled-bank",

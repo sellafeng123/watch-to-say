@@ -246,7 +246,12 @@ const YTD_QUESTION_BANK = (() => {
     const seen = new Set();
     const questions = [];
     for (const record of (Array.isArray(raw.questions) ? raw.questions : []).slice(0, LIMITS.maxQuestionsPerBank)) {
-      const question = normalizeQuestion(record, bank);
+      const question = normalizeQuestion({
+        ...record,
+        bankId: bank.id,
+        source: "learner_bank",
+        profiles: bank.profiles,
+      }, bank);
       if (!question || seen.has(question.id)) continue;
       if (!normalizedSource.includes(question.question)) continue;
       if (!question.cuePoints.every((cuePoint) => normalizedSource.includes(cuePoint))) continue;
