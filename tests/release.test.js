@@ -27,6 +27,7 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
   for (const script of manifest.content_scripts[0].js) {
     assert.ok(releaseCheck.includes(`"${script}"`));
   }
+  assert.ok(releaseCheck.includes('"question-bank.js"'));
 });
 
 test("release copy documents current scope without em dashes", () => {
@@ -353,10 +354,17 @@ test("Corpus Palace runtime files load in the required order and do not overclai
     manifest.content_scripts[0].js,
     ["corpus.js", "corpus-ui.js", "practice-session.js", "content.js"],
   );
-  assert.match(read("background.js"), /importScripts\("settings\.js", "corpus\.js", "practice-session\.js"\)/);
+  assert.match(
+    read("background.js"),
+    /importScripts\("settings\.js", "corpus\.js", "practice-session\.js", "question-bank\.js"\)/,
+  );
+  assert.match(
+    read("options.html"),
+    /<script src="settings\.js"><\/script>[\s\S]*?<script src="question-bank\.js"><\/script>[\s\S]*?<script src="options\.js"><\/script>/,
+  );
   assert.match(
     read("sidepanel.html"),
-    /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="practice-session\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
+    /<script src="settings\.js"><\/script>[\s\S]*?<script src="corpus\.js"><\/script>[\s\S]*?<script src="corpus-ui\.js"><\/script>[\s\S]*?<script src="practice-session\.js"><\/script>[\s\S]*?<script src="question-bank\.js"><\/script>[\s\S]*?<script src="sidepanel\.js"><\/script>/,
   );
 
   const learnerRuntime = [

@@ -31,6 +31,7 @@ public_allowlist=(
   "corpus.js"
   "corpus-ui.js"
   "practice-session.js"
+  "question-bank.js"
   "practice-ui.js"
   "content.js"
   "sidepanel.html"
