@@ -30,8 +30,18 @@ const QUESTION_BANK_NAME_CHARS = 120;
 const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
 const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
 const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
+const QUESTION_BANK_MESSAGE_ACTIONS = new Set([
+  "previewQuestionBankImport",
+  "saveQuestionBank",
+  "renameQuestionBank",
+  "listQuestionBanks",
+  "deleteQuestionBank",
+  "getPracticeQuestionSources",
+]);
 let questionBankMutationQueue = Promise.resolve();
 let bundledIeltsBankPromise;
+let activeQuestionBankAiCalls = 0;
+const questionBankAiWaiters = [];
 const debugLog = (...args) => {
   if (DEBUG) console.log(...args);
 };
@@ -274,6 +284,24 @@ async function mapWithQuestionBankConcurrency(items, worker) {
   return results;
 }
 
+async function withQuestionBankAiSlot(operation) {
+  if (activeQuestionBankAiCalls >= QUESTION_BANK_IMPORT_CONCURRENCY) {
+    await new Promise((resolve) => questionBankAiWaiters.push(resolve));
+  } else {
+    activeQuestionBankAiCalls += 1;
+  }
+  try {
+    return await operation();
+  } finally {
+    const next = questionBankAiWaiters.shift();
+    if (next) {
+      next();
+    } else {
+      activeQuestionBankAiCalls -= 1;
+    }
+  }
+}
+
 function withQuestionBankMutation(operation) {
   const result = questionBankMutationQueue.then(operation, operation);
   questionBankMutationQueue = result.catch(() => {});
@@ -284,7 +312,6 @@ function normalizeStoredLearnerBanks(value) {
   if (!Array.isArray(value)) return [];
   const seen = new Set();
   return value
-    .slice(0, YTD_QUESTION_BANK.LIMITS.maxBanks)
     .map((bank) => YTD_QUESTION_BANK.normalizeBank(bank))
     .filter((bank) => (
       bank
@@ -295,6 +322,70 @@ function normalizeStoredLearnerBanks(value) {
       && !seen.has(bank.id)
       && seen.add(bank.id)
     ));
+}
+
+function boundedRawQuestionBankCollection(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > YTD_QUESTION_BANK.LIMITS.maxBanks) {
+    return null;
+  }
+  return value;
+}
+
+function sameStringArray(first, second) {
+  return Array.isArray(first)
+    && first.length === second.length
+    && first.every((value, index) => value === second[index]);
+}
+
+function normalizeValidatedLearnerBank(raw) {
+  const normalized = YTD_QUESTION_BANK.normalizeBank(raw);
+  if (
+    !normalized
+    || raw?.id !== normalized.id
+    || raw.name !== normalized.name
+    || raw.source !== "learner_bank"
+    || !sameStringArray(raw.profiles, normalized.profiles)
+    || !Array.isArray(raw.questions)
+    || !normalized.questions.length
+    || raw.questions.length !== normalized.questions.length
+  ) {
+    return null;
+  }
+  for (let index = 0; index < raw.questions.length; index += 1) {
+    const original = raw.questions[index];
+    const question = normalized.questions[index];
+    if (
+      original?.id !== question.id
+      || original.bankId !== question.bankId
+      || original.source !== question.source
+      || !sameStringArray(original.profiles, question.profiles)
+      || original.part !== question.part
+      || original.topic !== question.topic
+      || original.question !== question.question
+      || !sameStringArray(original.cuePoints, question.cuePoints)
+      || original.parentCueCardId !== question.parentCueCardId
+      || original.season !== question.season
+      || original.createdAt !== question.createdAt
+    ) {
+      return null;
+    }
+  }
+  return normalized;
+}
+
+function findStoredLearnerBank(rawBanks, bankId) {
+  const matches = rawBanks
+    .map((bank, index) => ({ bank, index }))
+    .filter(({ bank }) => bank?.id === bankId);
+  if (matches.length > 1) return { error: "QUESTION_BANK_STORAGE_CORRUPT" };
+  if (matches.length === 0) return { error: "QUESTION_BANK_NOT_FOUND" };
+  const { bank: raw, index } = matches[0];
+  const normalized = normalizeValidatedLearnerBank(raw);
+  if (!normalized || normalized.id !== bankId) {
+    return { error: "QUESTION_BANK_STORAGE_CORRUPT" };
+  }
+  return { raw, normalized, index };
 }
 
 function questionBankMetadata(bank) {
@@ -312,7 +403,74 @@ function questionBankMetadata(bank) {
   };
 }
 
-function validateBundledIeltsBank(raw) {
+function validateRecognizedQuestionBankChunk(raw, draft, sourceText) {
+  if (
+    !raw
+    || raw.label !== "AI 题库识别"
+    || !Array.isArray(raw.questions)
+    || raw.questions.length === 0
+    || raw.questions.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
+    || !Array.isArray(raw.unrecognized)
+    || raw.unrecognized.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
+  ) {
+    return null;
+  }
+  const seenQuestions = new Set();
+  for (const record of raw.questions) {
+    const normalizedQuestion = cleanQuestionBankText(
+      record?.question,
+      YTD_QUESTION_BANK.LIMITS.maxQuestionChars,
+    );
+    if (
+      !record
+      || typeof record !== "object"
+      || ![null, "part1", "part2", "part3"].includes(record.part)
+      || typeof record.topic !== "string"
+      || !cleanQuestionBankText(record.topic, YTD_QUESTION_BANK.LIMITS.maxQuestionChars)
+      || record.topic.length > YTD_QUESTION_BANK.LIMITS.maxQuestionChars
+      || typeof record.question !== "string"
+      || !normalizedQuestion
+      || record.question.length > YTD_QUESTION_BANK.LIMITS.maxQuestionChars
+      || seenQuestions.has(normalizedQuestion)
+      || !Array.isArray(record.cuePoints)
+      || record.cuePoints.length > YTD_QUESTION_BANK.LIMITS.maxCuePoints
+      || record.cuePoints.some((cuePoint) => (
+        typeof cuePoint !== "string"
+        || !cleanQuestionBankText(cuePoint, YTD_QUESTION_BANK.LIMITS.maxCuePointChars)
+        || cuePoint.length > YTD_QUESTION_BANK.LIMITS.maxCuePointChars
+      ))
+    ) {
+      return null;
+    }
+    seenQuestions.add(normalizedQuestion);
+  }
+  if (raw.unrecognized.some((fragment) => (
+    typeof fragment !== "string"
+    || !cleanQuestionBankText(fragment, YTD_QUESTION_BANK.LIMITS.maxQuestionChars)
+    || fragment.length > YTD_QUESTION_BANK.LIMITS.maxQuestionChars
+  ))) {
+    return null;
+  }
+  const parsed = YTD_QUESTION_BANK.validateParsedBank(raw, draft, sourceText);
+  if (
+    !parsed
+    || parsed.bank.questions.length !== raw.questions.length
+    || parsed.unrecognized.length !== raw.unrecognized.length
+  ) {
+    return null;
+  }
+  return parsed;
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(value);
+  const result = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(result)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function validateBundledIeltsBank(raw) {
   const approval = raw?.approval;
   if (
     !raw
@@ -331,6 +489,7 @@ function validateBundledIeltsBank(raw) {
     || approval.correctionsApplied < 0
     || !/^[a-f0-9]{64}$/i.test(approval.sourcePdfSha256 || "")
     || !/^[a-f0-9]{64}$/i.test(approval.ocrSha256 || "")
+    || !/^[a-f0-9]{64}$/i.test(approval.bankSha256 || "")
     || !Number.isFinite(Date.parse(approval.reviewedAt || ""))
   ) {
     return null;
@@ -380,6 +539,9 @@ function validateBundledIeltsBank(raw) {
     const parent = byId.get(question.parentCueCardId);
     if (!parent || parent.part !== "part2") return null;
   }
+  if (await sha256Hex(JSON.stringify(normalized)) !== approval.bankSha256) {
+    return null;
+  }
   return normalized;
 }
 
@@ -389,7 +551,7 @@ async function loadBundledIeltsBank() {
       try {
         const response = await fetch(chrome.runtime.getURL(BUNDLED_IELTS_BANK_PATH));
         if (!response.ok) return null;
-        return validateBundledIeltsBank(await response.json());
+        return await validateBundledIeltsBank(await response.json());
       } catch (error) {
         debugLog("[YouTube Digest] Optional IELTS bank unavailable:", error);
         return null;
@@ -416,10 +578,13 @@ async function previewQuestionBankImport(draft = {}) {
   if (draft.replaceBankId != null) {
     replaceBankId = cleanQuestionBankText(draft.replaceBankId, 160);
     const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
-    const existing = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY])
-      .find((bank) => bank.id === replaceBankId);
-    if (!replaceBankId || !existing) return questionBankError("QUESTION_BANK_NOT_FOUND");
-    bankId = existing.id;
+    const banks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    if (!banks) return questionBankError("QUESTION_BANK_STORAGE_CORRUPT");
+    const existing = replaceBankId ? findStoredLearnerBank(banks, replaceBankId) : null;
+    if (!replaceBankId || existing?.error) {
+      return questionBankError(existing?.error || "QUESTION_BANK_NOT_FOUND");
+    }
+    bankId = existing.normalized.id;
   }
 
   try {
@@ -431,7 +596,7 @@ async function previewQuestionBankImport(draft = {}) {
         "User prompt",
         { sourceText },
       );
-      const { text } = await requestAiCompletion({
+      const { text } = await withQuestionBankAiSlot(async () => await requestAiCompletion({
         temperature: 0,
         maxTokens: 8192,
         responseFormat: { type: "json_object" },
@@ -439,25 +604,33 @@ async function previewQuestionBankImport(draft = {}) {
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-      });
+      }));
       const parsed = parseLooseJson(text);
-      if (
-        parsed?.label !== "AI 题库识别"
-        || !Array.isArray(parsed.questions)
-        || !Array.isArray(parsed.unrecognized)
-      ) {
+      const validated = validateRecognizedQuestionBankChunk(
+        parsed,
+        { id: bankId, name, profiles },
+        sourceText,
+      );
+      if (!validated) {
         throw Object.assign(new Error("Invalid question-bank recognition response."), {
           code: "INVALID_AI_RESPONSE",
         });
       }
-      return parsed;
+      return validated;
     });
-    const parsed = YTD_QUESTION_BANK.validateParsedBank({
-      label: "AI 题库识别",
-      questions: recognized.flatMap((result) => result.questions),
-      unrecognized: recognized.flatMap((result) => result.unrecognized),
-    }, { id: bankId, name, profiles }, draft.sourceText);
-    if (!parsed) return questionBankError("INVALID_AI_RESPONSE");
+    const questions = recognized.flatMap((result) => result.bank.questions);
+    const unrecognized = recognized.flatMap((result) => result.unrecognized);
+    const ids = new Set(questions.map((question) => question.id));
+    const questionTexts = new Set(questions.map((question) => question.question));
+    if (
+      questions.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
+      || ids.size !== questions.length
+      || questionTexts.size !== questions.length
+      || unrecognized.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
+    ) {
+      return questionBankError("INVALID_AI_RESPONSE");
+    }
+    const bank = { ...recognized[0].bank, questions };
 
     const previewToken = makeQuestionBankToken();
     await withQuestionBankMutation(async () => {
@@ -468,9 +641,9 @@ async function previewQuestionBankImport(draft = {}) {
           .filter(([, preview]) => Number.isFinite(preview?.expiresAt) && preview.expiresAt > now),
       );
       previews[previewToken] = {
-        bank: parsed.bank,
+        bank,
         replaceBankId,
-        unrecognized: parsed.unrecognized,
+        unrecognized,
         expiresAt: now + QUESTION_BANK_PREVIEW_TTL_MS,
       };
       await chrome.storage.local.set({ [QUESTION_BANK_PREVIEWS_KEY]: previews });
@@ -479,12 +652,12 @@ async function previewQuestionBankImport(draft = {}) {
       success: true,
       previewToken,
       summary: {
-        name: parsed.bank.name,
-        profiles: [...parsed.bank.profiles],
-        questionCount: parsed.bank.questions.length,
+        name: bank.name,
+        profiles: [...bank.profiles],
+        questionCount: bank.questions.length,
       },
-      sampleQuestions: parsed.bank.questions.slice(0, 5),
-      unrecognized: parsed.unrecognized,
+      sampleQuestions: bank.questions.slice(0, 5),
+      unrecognized,
     };
   } catch (error) {
     return questionBankError(error.code || "QUESTION_BANK_RECOGNITION_FAILED");
@@ -509,24 +682,25 @@ async function saveQuestionBank(request = {}) {
       await chrome.storage.local.set({ [QUESTION_BANK_PREVIEWS_KEY]: previews });
       return questionBankError("PREVIEW_EXPIRED");
     }
-    const bank = YTD_QUESTION_BANK.normalizeBank(preview.bank);
-    if (!bank || bank.source !== "learner_bank" || !bank.id || !bank.name || !bank.questions.length) {
+    const bank = normalizeValidatedLearnerBank(preview.bank);
+    if (!bank) {
       return questionBankError("INVALID_PREVIEW_TOKEN");
     }
-    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    const banks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    if (!banks) return questionBankError("QUESTION_BANK_STORAGE_CORRUPT");
     let nextBanks;
     if (preview.replaceBankId) {
-      const index = banks.findIndex((candidate) => candidate.id === preview.replaceBankId);
-      if (index === -1 || bank.id !== preview.replaceBankId) {
-        return questionBankError("QUESTION_BANK_NOT_FOUND");
+      const existing = findStoredLearnerBank(banks, preview.replaceBankId);
+      if (existing.error || bank.id !== preview.replaceBankId) {
+        return questionBankError(existing.error || "QUESTION_BANK_NOT_FOUND");
       }
       nextBanks = banks.slice();
-      nextBanks[index] = bank;
+      nextBanks[existing.index] = bank;
     } else {
       if (banks.length >= YTD_QUESTION_BANK.LIMITS.maxBanks) {
         return questionBankError("QUESTION_BANK_LIMIT");
       }
-      if (banks.some((candidate) => candidate.id === bank.id)) {
+      if (banks.some((candidate) => candidate?.id === bank.id)) {
         return questionBankError("QUESTION_BANK_EXISTS");
       }
       nextBanks = [...banks, bank];
@@ -547,12 +721,13 @@ async function renameQuestionBank(request = {}) {
     if (!bankId) return questionBankError("INVALID_BANK_ID");
     if (!name) return questionBankError("INVALID_BANK_NAME");
     const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
-    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
-    const index = banks.findIndex((bank) => bank.id === bankId);
-    if (index === -1) return questionBankError("QUESTION_BANK_NOT_FOUND");
-    const bank = { ...banks[index], name };
+    const banks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    if (!banks) return questionBankError("QUESTION_BANK_STORAGE_CORRUPT");
+    const existing = findStoredLearnerBank(banks, bankId);
+    if (existing.error) return questionBankError(existing.error);
+    const bank = { ...existing.normalized, name };
     const nextBanks = banks.slice();
-    nextBanks[index] = bank;
+    nextBanks[existing.index] = { ...existing.raw, name };
     await chrome.storage.local.set({ [YTD_QUESTION_BANK.STORAGE_KEY]: nextBanks });
     return { success: true, bank };
   });
@@ -563,9 +738,12 @@ async function deleteQuestionBank(request = {}) {
     const bankId = cleanQuestionBankText(request.bankId, 160);
     if (!bankId) return questionBankError("INVALID_BANK_ID");
     const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
-    const banks = normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
-    const nextBanks = banks.filter((bank) => bank.id !== bankId);
-    if (nextBanks.length === banks.length) return questionBankError("QUESTION_BANK_NOT_FOUND");
+    const banks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+    if (!banks) return questionBankError("QUESTION_BANK_STORAGE_CORRUPT");
+    const existing = findStoredLearnerBank(banks, bankId);
+    if (existing.error) return questionBankError(existing.error);
+    const nextBanks = banks.slice();
+    nextBanks.splice(existing.index, 1);
     await chrome.storage.local.set({ [YTD_QUESTION_BANK.STORAGE_KEY]: nextBanks });
     return { success: true };
   });
@@ -576,13 +754,24 @@ async function listQuestionBanks() {
     chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY),
     loadBundledIeltsBank(),
   ]);
+  const banks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+  if (!banks) return questionBankError("QUESTION_BANK_STORAGE_CORRUPT");
   return {
     success: true,
-    banks: normalizeStoredLearnerBanks(stored[YTD_QUESTION_BANK.STORAGE_KEY])
-      .map(questionBankMetadata),
+    banks: normalizeStoredLearnerBanks(banks).map(questionBankMetadata),
     bundledAvailable: !!bundledBank,
     bundled: bundledBank ? questionBankMetadata(bundledBank) : null,
   };
+}
+
+function isTrustedQuestionBankSender(sender) {
+  const extensionRoot = chrome.runtime.getURL("");
+  return !!(
+    sender
+    && sender.id === chrome.runtime.id
+    && typeof sender.url === "string"
+    && sender.url.startsWith(extensionRoot)
+  );
 }
 
 async function readBoundedAiResponse(response, onActivity) {
@@ -754,6 +943,14 @@ chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
  * This is like a switchboard — different "actions" trigger different handlers.
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (
+    QUESTION_BANK_MESSAGE_ACTIONS.has(message.action)
+    && !isTrustedQuestionBankSender(sender)
+  ) {
+    sendResponse({ success: false, error: "UNTRUSTED_SENDER" });
+    return false;
+  }
+
   // We need to return true to indicate we'll respond asynchronously
   if (message.action === "fetchTranscript") {
     handleFetchTranscript(message.videoId)

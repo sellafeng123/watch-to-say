@@ -50,6 +50,12 @@ function digest(value) {
   return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
+function normalizedBankPayload(bank) {
+  const normalized = questionBank.normalizeBank(bank);
+  if (!normalized) throw new Error("IELTS bank payload is invalid.");
+  return normalized;
+}
+
 function validatePageRecords(pages, expectedPageCount = null) {
   if (!Array.isArray(pages) || pages.length === 0) {
     throw new Error("OCR pages must be a non-empty array.");
@@ -199,6 +205,12 @@ export function validateCompleteIeltsBank(bank, { requireApproval = true } = {})
     const parent = byId.get(question.parentCueCardId);
     if (!parent || parent.part !== "part2") {
       throw new Error(`Question ${question.id} has a dangling parentCueCardId.`);
+    }
+  }
+  if (requireApproval) {
+    const expectedDigest = digest(normalizedBankPayload(bank));
+    if (bank.approval?.bankSha256 !== expectedDigest) {
+      throw new Error("Approved bank digest does not match the normalized payload.");
     }
   }
   return counts;
@@ -505,7 +517,12 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
     throw new Error("Normalization would silently drop parsed questions.");
   }
   const result = { ...normalized, warnings };
-  if (reviewed.approval) result.approval = reviewed.approval;
+  if (reviewed.approval) {
+    result.approval = {
+      ...reviewed.approval,
+      bankSha256: digest(normalizedBankPayload(normalized)),
+    };
+  }
   return result;
 }
 

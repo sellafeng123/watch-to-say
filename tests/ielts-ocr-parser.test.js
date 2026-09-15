@@ -337,6 +337,13 @@ test("applies an approved reviewed correction and stamps the bank", async () => 
   });
 
   assert.ok(result.questions.some((item) => item.question === "Is this a reviewed source question?"));
+  const expectedPayload = {
+    id: result.id,
+    name: result.name,
+    source: result.source,
+    profiles: result.profiles,
+    questions: result.questions,
+  };
   assert.deepEqual(result.approval, {
     status: "approved",
     schemaVersion: 1,
@@ -346,7 +353,24 @@ test("applies an approved reviewed correction and stamps the bank", async () => 
     reviewedPageCount: 46,
     correctionsApplied: 1,
     reviewedAt: "2026-09-15T12:00:00.000Z",
+    bankSha256: digest(expectedPayload),
   });
+});
+
+test("complete-bank validation rejects a normalized payload changed after approval", async () => {
+  const { parseIeltsOcrPages, validateCompleteIeltsBank } = await import(parserUrl.href);
+  const completeFixture = pagesWithExpectedCount(fixture);
+  const bank = parseIeltsOcrPages(completeFixture, {
+    id: "ielts-test",
+    review: approvedReview(completeFixture),
+  });
+  const question = bank.questions.find((item) => item.part === "part1");
+  question.question = "A structurally valid but unapproved replacement?";
+
+  assert.throws(
+    () => validateCompleteIeltsBank(bank),
+    /approved bank digest does not match/i,
+  );
 });
 
 test("rejects an approved review that is self-consistent but omits page 46", async () => {
@@ -487,6 +511,7 @@ test("CLI writes only a complete approved bank with valid parent links", () => {
   assert.equal(result.status, 0, result.stderr);
   const bank = JSON.parse(fs.readFileSync(output, "utf8"));
   assert.equal(bank.approval.status, "approved");
+  assert.match(bank.approval.bankSha256, /^[a-f0-9]{64}$/);
   assert.ok(["part1", "part2", "part3"].every((part) => (
     bank.questions.some((question) => question.part === part)
   )));

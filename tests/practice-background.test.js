@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
-const { webcrypto } = require("node:crypto");
+const { createHash, webcrypto } = require("node:crypto");
 
 const root = path.resolve(__dirname, "..");
 const backgroundSource = fs.readFileSync(path.join(root, "background.js"), "utf8");
@@ -14,6 +14,8 @@ const questionBank = require("../question-bank.js");
 function loadPracticeHelpers(initialStorage = {}, options = {}) {
   const storage = { ...initialStorage };
   const writes = [];
+  const reads = [];
+  const extensionId = "test-extension-id";
   let messageListener = null;
   const listeners = { addListener() {} };
   const runtimeMessages = {
@@ -42,9 +44,12 @@ function loadPracticeHelpers(initialStorage = {}, options = {}) {
     chrome: {
       storage: { local: {
         setAccessLevel: () => Promise.resolve(),
-        get: async (keys) => Array.isArray(keys)
-          ? Object.fromEntries(keys.map((key) => [key, storage[key]]))
-          : { [keys]: storage[keys] },
+        get: async (keys) => {
+          reads.push(structuredClone(keys));
+          return Array.isArray(keys)
+            ? Object.fromEntries(keys.map((key) => [key, storage[key]]))
+            : { [keys]: storage[keys] };
+        },
         set: async (values) => {
           writes.push(structuredClone(values));
           Object.assign(storage, values);
@@ -56,9 +61,10 @@ function loadPracticeHelpers(initialStorage = {}, options = {}) {
       action: { onClicked: listeners },
       sidePanel: { setPanelBehavior() {}, setOptions: async () => {} },
       runtime: {
+        id: extensionId,
         onInstalled: listeners,
         onMessage: runtimeMessages,
-        getURL: (file) => `chrome-extension://test/${file}`,
+        getURL: (file) => `chrome-extension://${extensionId}/${file}`,
         sendMessage: () => Promise.resolve(),
       },
       tabs: { onUpdated: listeners, onActivated: listeners },
@@ -70,11 +76,22 @@ function loadPracticeHelpers(initialStorage = {}, options = {}) {
     helpers: sandbox.__YTD_TRANSLATION_TESTING__,
     storage,
     writes,
-    dispatch(message) {
+    reads,
+    dispatch(message, sender = {
+      id: extensionId,
+      url: `chrome-extension://${extensionId}/options.html`,
+    }) {
       return new Promise((resolve, reject) => {
         if (!messageListener) return reject(new Error("message listener missing"));
-        const keepOpen = messageListener(message, {}, resolve);
-        if (keepOpen !== true) reject(new Error(`message channel closed for ${message.action}`));
+        let responded = false;
+        const sendResponse = (result) => {
+          responded = true;
+          resolve(result);
+        };
+        const keepOpen = messageListener(message, sender, sendResponse);
+        if (keepOpen !== true && !responded) {
+          reject(new Error(`message channel closed for ${message.action}`));
+        }
       });
     },
   };
@@ -161,7 +178,7 @@ function approvedBundledBank(overrides = {}) {
     };
     return { id: questionBank.makeQuestionId(complete), ...complete };
   });
-  return {
+  const bank = {
     id: "ielts-private",
     name: "IELTS private bank",
     source: "bundled_ielts",
@@ -179,6 +196,15 @@ function approvedBundledBank(overrides = {}) {
     },
     ...overrides,
   };
+  if (bank.approval?.status === "approved" && !Object.hasOwn(bank.approval, "bankSha256")) {
+    bank.approval = {
+      ...bank.approval,
+      bankSha256: createHash("sha256")
+        .update(JSON.stringify(questionBank.normalizeBank(bank)))
+        .digest("hex"),
+    };
+  }
+  return bank;
 }
 
 function entry(overrides = {}) {
@@ -346,6 +372,39 @@ test("recognizes paragraph chunks no larger than 12,000 characters with at most 
   assert.equal(maximumActive, 3);
 });
 
+test("shares the three-call recognition limit across simultaneous imports", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const sourceFor = (prefix) => Array.from({ length: 4 }, (_, index) => (
+    `Question ${prefix}${index + 1}? ${prefix.repeat(7_900)}`
+  )).join("\n\n");
+  let active = 0;
+  let maximumActive = 0;
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: async (url, request = {}) => {
+      if (url.startsWith("chrome-extension://")) return { ok: true, text: async () => prompt };
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      const userPrompt = JSON.parse(request.body).messages.at(-1).content;
+      const question = userPrompt.match(/Question [AB]\d+\?/)[0];
+      await new Promise((resolve) => setImmediate(resolve));
+      active -= 1;
+      return completion(JSON.stringify({
+        label: "AI 题库识别",
+        questions: [{ part: null, topic: "Concurrency", question, cuePoints: [] }],
+        unrecognized: [],
+      }));
+    },
+  });
+
+  const results = await Promise.all([
+    helpers.previewQuestionBankImport({ name: "First", profiles: ["work"], sourceText: sourceFor("A") }),
+    helpers.previewQuestionBankImport({ name: "Second", profiles: ["work"], sourceText: sourceFor("B") }),
+  ]);
+
+  assert.ok(results.every((result) => result.success));
+  assert.equal(maximumActive, 3);
+});
+
 test("rejects a recognition preview when DeepSeek rewrites the source question", async () => {
   const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
   const { helpers, storage } = loadPracticeHelpers({}, {
@@ -367,6 +426,142 @@ test("rejects a recognition preview when DeepSeek rewrites the source question",
   assert.equal(result.success, false);
   assert.equal(result.error, "INVALID_AI_RESPONSE");
   assert.equal(storage.ytd_question_bank_previews_v1, undefined);
+});
+
+test("rejects an entire recognition response when any raw question violates the import contract", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const good = {
+    part: null,
+    topic: "Meetings",
+    question: "How do you prepare for an important meeting?",
+    cuePoints: [],
+  };
+  const longQuestion = `${"Q".repeat(questionBank.LIMITS.maxQuestionChars)}?`;
+  const longCue = "C".repeat(questionBank.LIMITS.maxCuePointChars + 1);
+  const cases = [
+    { label: "unknown Part", questions: [good, { ...good, question: "Unknown part?", part: "part4" }], source: `${good.question}\nUnknown part?` },
+    { label: "empty question", questions: [good, { ...good, question: "" }], source: good.question },
+    { label: "source mismatch", questions: [good, { ...good, question: "Invented question?" }], source: good.question },
+    { label: "duplicate question", questions: [good, good], source: good.question },
+    { label: "duplicate wording under another topic", questions: [good, { ...good, topic: "Other" }], source: good.question },
+    { label: "overlong question", questions: [{ ...good, question: longQuestion }], source: longQuestion },
+    { label: "overlong topic", questions: [{ ...good, topic: "T".repeat(questionBank.LIMITS.maxQuestionChars + 1) }], source: good.question },
+    {
+      label: "too many cue points",
+      questions: [{ ...good, cuePoints: Array.from({ length: questionBank.LIMITS.maxCuePoints + 1 }, (_, index) => `Cue ${index}`) }],
+      source: `${good.question}\n${Array.from({ length: 13 }, (_, index) => `Cue ${index}`).join("\n")}`,
+    },
+    { label: "overlong cue point", questions: [{ ...good, cuePoints: [longCue] }], source: `${good.question}\n${longCue}` },
+  ];
+
+  for (const fixture of cases) {
+    const { helpers, storage } = loadPracticeHelpers({}, {
+      fetch: async (url) => url.startsWith("chrome-extension://")
+        ? { ok: true, text: async () => prompt }
+        : completion(JSON.stringify({
+          label: "AI 题库识别",
+          questions: fixture.questions,
+          unrecognized: [],
+        })),
+    });
+    const result = await helpers.previewQuestionBankImport({
+      name: fixture.label,
+      profiles: ["work"],
+      sourceText: fixture.source,
+    });
+    assert.equal(result.success, false, fixture.label);
+    assert.equal(result.error, "INVALID_AI_RESPONSE", fixture.label);
+    assert.equal(storage.ytd_question_bank_previews_v1, undefined, fixture.label);
+  }
+});
+
+test("strips unknown response properties after strict question validation", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const question = "How do you prepare for an important meeting?";
+  const { helpers, storage } = loadPracticeHelpers({}, {
+    fetch: async (url) => url.startsWith("chrome-extension://")
+      ? { ok: true, text: async () => prompt }
+      : completion(JSON.stringify({
+        label: "AI 题库识别",
+        unexpected: "discard",
+        questions: [{
+          part: null,
+          topic: "Meetings",
+          question,
+          cuePoints: [],
+          unexpected: "discard",
+        }],
+        unrecognized: [],
+      })),
+  });
+
+  const result = await helpers.previewQuestionBankImport({
+    name: "Extra fields",
+    profiles: ["work"],
+    sourceText: question,
+  });
+
+  assert.equal(result.success, true);
+  const storedQuestion = storage.ytd_question_bank_previews_v1[result.previewToken].bank.questions[0];
+  assert.equal(Object.hasOwn(storedQuestion, "unexpected"), false);
+});
+
+test("validates each recognition response against only the chunk sent to that call", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const firstQuestion = "What makes a meeting useful?";
+  const secondQuestion = "How do you prepare for a presentation?";
+  const sourceText = [
+    `${firstQuestion} ${"a".repeat(7_900)}`,
+    `${secondQuestion} ${"b".repeat(7_900)}`,
+  ].join("\n\n");
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: async (url, request = {}) => {
+      if (url.startsWith("chrome-extension://")) return { ok: true, text: async () => prompt };
+      const userPrompt = JSON.parse(request.body).messages.at(-1).content;
+      const borrowed = userPrompt.includes(firstQuestion) ? secondQuestion : firstQuestion;
+      return completion(JSON.stringify({
+        label: "AI 题库识别",
+        questions: [{ part: null, topic: "Work", question: borrowed, cuePoints: [] }],
+        unrecognized: [],
+      }));
+    },
+  });
+
+  const result = await helpers.previewQuestionBankImport({
+    name: "Borrowed chunks",
+    profiles: ["work"],
+    sourceText,
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "INVALID_AI_RESPONSE");
+});
+
+test("rejects duplicate normalized question IDs returned by different chunks", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const question = "How do you prepare for an important meeting?";
+  const sourceText = [
+    `${question} ${"a".repeat(7_900)}`,
+    `${question} ${"b".repeat(7_900)}`,
+  ].join("\n\n");
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: async (url) => url.startsWith("chrome-extension://")
+      ? { ok: true, text: async () => prompt }
+      : completion(JSON.stringify({
+        label: "AI 题库识别",
+        questions: [{ part: null, topic: "Meetings", question, cuePoints: [] }],
+        unrecognized: [],
+      })),
+  });
+
+  const result = await helpers.previewQuestionBankImport({
+    name: "Duplicate chunks",
+    profiles: ["work"],
+    sourceText,
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "INVALID_AI_RESPONSE");
 });
 
 test("stores a structured preview separately without writing raw paste to the durable bank key", async () => {
@@ -515,6 +710,115 @@ test("deletes only the requested learner bank", async () => {
   assert.deepEqual(storage[questionBank.STORAGE_KEY].map((bank) => bank.id), [second.id]);
 });
 
+test("rename and delete preserve unrelated raw bank records byte-for-byte", async () => {
+  const target = learnerBankRecord("target");
+  const unrelated = {
+    ...learnerBankRecord("unrelated"),
+    legacyMetadata: { importedBy: "older-version", keep: true },
+  };
+  const renameHarness = loadPracticeHelpers({
+    [questionBank.STORAGE_KEY]: [target, unrelated],
+  });
+
+  const renamed = await renameHarness.helpers.renameQuestionBank({
+    bankId: target.id,
+    name: "Renamed target",
+  });
+
+  assert.equal(renamed.success, true);
+  assert.deepEqual(renameHarness.storage[questionBank.STORAGE_KEY][1], unrelated);
+
+  const deleteHarness = loadPracticeHelpers({
+    [questionBank.STORAGE_KEY]: [target, unrelated],
+  });
+  const deleted = await deleteHarness.helpers.deleteQuestionBank({ bankId: target.id });
+  assert.equal(deleted.success, true);
+  assert.deepEqual(deleteHarness.storage[questionBank.STORAGE_KEY], [unrelated]);
+});
+
+test("management fails safely when the stored collection exceeds its hard bound", async () => {
+  const banks = Array.from({ length: 13 }, (_, index) => learnerBankRecord(index));
+  const { helpers, storage, writes } = loadPracticeHelpers({
+    [questionBank.STORAGE_KEY]: banks,
+  });
+
+  const result = await helpers.renameQuestionBank({
+    bankId: banks[0].id,
+    name: "Must not rewrite",
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "QUESTION_BANK_STORAGE_CORRUPT");
+  assert.equal(writes.length, 0);
+  assert.deepEqual(storage[questionBank.STORAGE_KEY], banks);
+});
+
+test("management rejects a malformed target instead of normalizing it during rename", async () => {
+  const malformed = learnerBankRecord("malformed-target");
+  malformed.questions[0].part = "part4";
+  const { helpers, storage, writes } = loadPracticeHelpers({
+    [questionBank.STORAGE_KEY]: [malformed],
+  });
+
+  const result = await helpers.renameQuestionBank({
+    bankId: malformed.id,
+    name: "Must not repair",
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "QUESTION_BANK_STORAGE_CORRUPT");
+  assert.equal(writes.length, 0);
+  assert.deepEqual(storage[questionBank.STORAGE_KEY], [malformed]);
+});
+
+test("rejects all question-bank messages from content-script senders before side effects", async () => {
+  const prompt = fs.readFileSync(path.join(root, "prompts/question-bank-import.md"), "utf8");
+  const hostileSender = {
+    id: "test-extension-id",
+    url: "https://www.youtube.com/watch?v=abc123",
+    tab: { id: 1 },
+  };
+  const messages = [
+    {
+      action: "previewQuestionBankImport",
+      name: "Hostile",
+      profiles: ["work"],
+      sourceText: "How do you prepare for an important meeting?",
+    },
+    { action: "saveQuestionBank", previewToken: "token" },
+    { action: "renameQuestionBank", bankId: "bank", name: "Hostile" },
+    { action: "listQuestionBanks" },
+    { action: "deleteQuestionBank", bankId: "bank" },
+    { action: "getPracticeQuestionSources" },
+  ];
+
+  for (const message of messages) {
+    let fetches = 0;
+    const { dispatch, reads, writes } = loadPracticeHelpers({}, {
+      fetch: async (url) => {
+        fetches += 1;
+        if (url.includes("question-bank-import.md")) return { ok: true, text: async () => prompt };
+        if (url.includes("ielts-question-bank.local.json")) return jsonResponse({}, { ok: false, status: 404 });
+        return completion(JSON.stringify({
+          label: "AI 题库识别",
+          questions: [],
+          unrecognized: [],
+        }));
+      },
+    });
+
+    const result = await dispatch(message, hostileSender);
+
+    assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+      success: false,
+      error: "UNTRUSTED_SENDER",
+    }, message.action);
+    assert.equal(fetches, 0, message.action);
+    assert.equal(reads.length, 0, message.action);
+    assert.equal(writes.length, 0, message.action);
+  }
+});
+
 test("lists compact learner metadata and approved bundled IELTS metadata separately", async () => {
   const bundled = approvedBundledBank();
   const learner = learnerBankRecord("listed");
@@ -538,14 +842,21 @@ test("lists compact learner metadata and approved bundled IELTS metadata separat
   assert.equal(listed.banks[0].questionCount, 1);
   assert.equal(Object.hasOwn(listed.banks[0], "questions"), false);
   assert.deepEqual(JSON.parse(JSON.stringify(sources)), JSON.parse(JSON.stringify(listed)));
-  assert.deepEqual([...new Set(requested)], ["chrome-extension://test/data/ielts-question-bank.local.json"]);
+  assert.deepEqual([...new Set(requested)], ["chrome-extension://test-extension-id/data/ielts-question-bank.local.json"]);
 });
 
 test("fails closed for missing, malformed, draft, or incomplete bundled IELTS data and never loads the sample", async () => {
+  const missingDigest = approvedBundledBank();
+  delete missingDigest.approval.bankSha256;
+  const mismatchedDigest = approvedBundledBank();
+  mismatchedDigest.questions[0].question = "Do you enjoy your home?";
+  mismatchedDigest.questions[0].id = questionBank.makeQuestionId(mismatchedDigest.questions[0]);
   const variants = [
     jsonResponse({}, { ok: false, status: 404 }),
     jsonResponse({ questions: "not-an-array" }),
     jsonResponse(approvedBundledBank({ approval: { status: "draft" } })),
+    jsonResponse(missingDigest),
+    jsonResponse(mismatchedDigest),
     jsonResponse(approvedBundledBank({
       approval: { ...approvedBundledBank().approval, pageCount: 45, reviewedPageCount: 45 },
     })),
