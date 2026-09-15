@@ -2,12 +2,15 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const questionBank = require("../question-bank.js");
 const LOW_CONFIDENCE = 0.75;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const VISUAL_ROW_TOLERANCE = 0.004;
 
 function cleanText(value) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
@@ -42,7 +45,154 @@ function warningReason(reasons) {
   return [...reasons].join("; ");
 }
 
+function digest(value) {
+  return crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+function validatePageRecords(pages) {
+  if (!Array.isArray(pages) || pages.length === 0) {
+    throw new Error("OCR pages must be a non-empty array.");
+  }
+  const seen = new Set();
+  for (const page of pages) {
+    if (!Number.isInteger(page?.page) || page.page < 1 || !Array.isArray(page.lines)) {
+      throw new Error("Every OCR page must have a positive integer page number and a lines array.");
+    }
+    if (seen.has(page.page)) throw new Error(`Duplicate OCR page record: ${page.page}.`);
+    seen.add(page.page);
+  }
+}
+
+function applyReviewedCorrections(pages, review) {
+  if (!review || typeof review !== "object") {
+    throw new Error("An approved review artifact is required.");
+  }
+  if (review.schemaVersion !== 1) throw new Error("Review schemaVersion must be 1.");
+  if (review.status !== "approved") throw new Error("Review status must be approved.");
+  if (!SHA256_PATTERN.test(review.sourcePdfSha256 || "")) {
+    throw new Error("Review sourcePdfSha256 must be a SHA-256 digest.");
+  }
+  if (review.ocrSha256 !== digest(pages)) throw new Error("Review OCR digest does not match the input.");
+  if (review.pageCount !== pages.length) throw new Error("Review page count does not match the input.");
+  if (typeof review.reviewedAt !== "string" || !review.reviewedAt.trim()) {
+    throw new Error("Review reviewedAt is required.");
+  }
+  if (!Array.isArray(review.reviewedPages) || review.reviewedPages.length !== pages.length) {
+    throw new Error("Every OCR page must have one reviewed-page record.");
+  }
+
+  const pagesByNumber = new Map(pages.map((page) => [page.page, page]));
+  const reviewedNumbers = new Set();
+  for (const record of review.reviewedPages) {
+    const page = pagesByNumber.get(record?.page);
+    if (!page || reviewedNumbers.has(record.page)) {
+      throw new Error("Reviewed pages must match every OCR page exactly once.");
+    }
+    if (record.status !== "reviewed") throw new Error(`Page ${record.page} is not marked reviewed.`);
+    if (record.ocrSha256 !== digest(page)) throw new Error(`Page ${record.page} review digest is stale.`);
+    reviewedNumbers.add(record.page);
+  }
+
+  const corrected = pages.map((page) => ({
+    ...page,
+    lines: page.lines.map((line) => ({ ...line })),
+  }));
+  const correctedByNumber = new Map(corrected.map((page) => [page.page, page]));
+  const corrections = Array.isArray(review.corrections) ? review.corrections : [];
+  for (const correction of corrections) {
+    if (correction?.operation !== "replace") {
+      throw new Error(`Unsupported review correction operation on page ${correction?.page ?? "unknown"}.`);
+    }
+    const page = correctedByNumber.get(correction.page);
+    const original = cleanText(correction.original);
+    const replacement = cleanText(correction.replacement);
+    if (!page || !original || !replacement) throw new Error("Review replacements require page, original, and replacement.");
+    const matches = page.lines
+      .map((line, index) => cleanText(line.text) === original ? index : -1)
+      .filter((index) => index >= 0);
+    if (matches.length !== 1) {
+      throw new Error(`Review replacement on page ${correction.page} matched ${matches.length} lines; expected 1.`);
+    }
+    page.lines[matches[0]].text = replacement;
+  }
+
+  return {
+    pages: corrected,
+    approval: {
+      status: "approved",
+      schemaVersion: 1,
+      sourcePdfSha256: review.sourcePdfSha256,
+      ocrSha256: review.ocrSha256,
+      pageCount: review.pageCount,
+      reviewedPageCount: review.reviewedPages.length,
+      correctionsApplied: corrections.length,
+      reviewedAt: review.reviewedAt,
+    },
+  };
+}
+
+function validateBeforeNormalization(rawQuestions) {
+  if (rawQuestions.length === 0) throw new Error("IELTS OCR conversion produced zero questions.");
+  if (rawQuestions.length > questionBank.LIMITS.maxQuestionsPerBank) {
+    throw new Error(`Question count exceeds ${questionBank.LIMITS.maxQuestionsPerBank}.`);
+  }
+  const ids = new Set();
+  for (const question of rawQuestions) {
+    const page = question.sourcePage;
+    if (question.question.length > questionBank.LIMITS.maxQuestionChars) {
+      throw new Error(`Question exceeds ${questionBank.LIMITS.maxQuestionChars} characters on page ${page}.`);
+    }
+    if (question.topic.length > questionBank.LIMITS.maxQuestionChars) {
+      throw new Error(`Topic exceeds ${questionBank.LIMITS.maxQuestionChars} characters on page ${page}.`);
+    }
+    if (question.cuePoints.length > questionBank.LIMITS.maxCuePoints) {
+      throw new Error(`Cue card has ${question.cuePoints.length} points on page ${page}; maximum is ${questionBank.LIMITS.maxCuePoints}.`);
+    }
+    for (const cuePoint of question.cuePoints) {
+      if (cuePoint.length > questionBank.LIMITS.maxCuePointChars) {
+        throw new Error(`Cue point exceeds ${questionBank.LIMITS.maxCuePointChars} characters on page ${page}.`);
+      }
+    }
+    const id = questionBank.makeQuestionId(question);
+    if (ids.has(id)) throw new Error(`Duplicate question would be lost during normalization on page ${page}.`);
+    ids.add(id);
+  }
+}
+
+export function validateCompleteIeltsBank(bank, { requireApproval = true } = {}) {
+  if (!bank || typeof bank !== "object" || !Array.isArray(bank.questions) || bank.questions.length === 0) {
+    throw new Error("IELTS bank has zero questions.");
+  }
+  if (requireApproval && bank.approval?.status !== "approved") {
+    throw new Error("IELTS bank requires an approved review marker.");
+  }
+  const counts = Object.fromEntries(["part1", "part2", "part3"].map((part) => [
+    part,
+    bank.questions.filter((question) => question.part === part).length,
+  ]));
+  for (const [part, count] of Object.entries(counts)) {
+    if (count === 0) throw new Error(`${part.replace("part", "Part ")} count must be greater than zero.`);
+  }
+  const byId = new Map();
+  for (const question of bank.questions) {
+    if (!question.id || byId.has(question.id)) throw new Error("IELTS bank contains duplicate or missing IDs.");
+    byId.set(question.id, question);
+  }
+  for (const question of bank.questions) {
+    if (!question.parentCueCardId) continue;
+    const parent = byId.get(question.parentCueCardId);
+    if (!parent || parent.part !== "part2") {
+      throw new Error(`Question ${question.id} has a dangling parentCueCardId.`);
+    }
+  }
+  return counts;
+}
+
 export function parseIeltsOcrPages(pages, bankMeta = {}) {
+  validatePageRecords(pages);
+  const reviewed = bankMeta.review
+    ? applyReviewedCorrections(pages, bankMeta.review)
+    : { pages, approval: null };
   const id = cleanText(bankMeta.id) || "ielts-local";
   const season = cleanText(bankMeta.season);
   const bank = {
@@ -56,7 +206,7 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
   const warningRecords = new Map();
   let sequence = 0;
 
-  const orderedLines = (Array.isArray(pages) ? pages : [])
+  const visualLines = reviewed.pages
     .flatMap((pageRecord) => {
       const page = Number.isFinite(pageRecord?.page) ? pageRecord.page : 0;
       return (Array.isArray(pageRecord?.lines) ? pageRecord.lines : []).map((line) => ({
@@ -72,9 +222,22 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
     .sort((first, second) => (
       first.page - second.page
       || second.y - first.y
-      || first.x - second.x
       || first.sequence - second.sequence
     ));
+  const visualRows = [];
+  for (const line of visualLines) {
+    const row = visualRows[visualRows.length - 1];
+    if (row && row.page === line.page && Math.abs(row.y - line.y) <= VISUAL_ROW_TOLERANCE) {
+      row.lines.push(line);
+    } else {
+      visualRows.push({ page: line.page, y: line.y, lines: [line] });
+    }
+  }
+  const orderedLines = visualRows
+    .flatMap((row) => row.lines.sort((first, second) => (
+      first.x - second.x
+      || first.sequence - second.sequence
+    )));
 
   function warn(line, reason) {
     const key = line.sequence;
@@ -90,8 +253,9 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
   let currentCue = null;
   let lastCueCardId = null;
   let pendingCueParts = null;
+  let pendingCuePage = null;
 
-  function addCue(question) {
+  function addCue(question, page = pendingCuePage) {
     const cue = {
       bankId: id,
       source: "bundled_ielts",
@@ -103,12 +267,14 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
       parentCueCardId: null,
       season,
       createdAt: bank.createdAt,
+      sourcePage: page,
     };
     rawQuestions.push(cue);
     currentCue = cue;
     lastCueCardId = questionBank.makeQuestionId(cue);
     topic = cue.topic;
     pendingCueParts = null;
+    pendingCuePage = null;
     awaitingTopic = false;
     return cue;
   }
@@ -137,7 +303,12 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
     let endIndex = startIndex;
     for (let index = startIndex + 1; index < orderedLines.length; index += 1) {
       const candidate = orderedLines[index];
-      if (candidate.confidence < LOW_CONFIDENCE) break;
+      if (candidate.confidence < LOW_CONFIDENCE || candidate.y < 0.06 || candidate.y > 0.97) {
+        if (candidate.confidence < LOW_CONFIDENCE) warn(candidate, "low-confidence");
+        warn(candidate, "unparsed");
+        endIndex = index;
+        continue;
+      }
       if (
         partHeading(candidate.text)
         || /^you should say\s*:?$/i.test(matchingText(candidate.text))
@@ -221,10 +392,11 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
       const inlineMarker = text.match(/^(.*?)\s+you should(?:\s+say\s*:?)?$/i);
       const instruction = cleanText(inlineMarker ? inlineMarker[1] : text);
       if (/\byou should say\s*:?$/i.test(text)) {
-        addCue(instruction);
+        addCue(instruction, line.page);
         collectingCuePoints = true;
       } else {
         pendingCueParts = [instruction];
+        pendingCuePage = line.page;
       }
       continue;
     }
@@ -243,6 +415,7 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
           parentCueCardId: part === "part3" ? lastCueCardId : null,
           season,
           createdAt: bank.createdAt,
+          sourcePage: line.page,
         });
         index = wrapped.endIndex;
         awaitingTopic = false;
@@ -276,6 +449,7 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
         parentCueCardId: part === "part3" ? lastCueCardId : null,
         season,
         createdAt: bank.createdAt,
+        sourcePage: line.page,
       });
       awaitingTopic = false;
       continue;
@@ -291,6 +465,8 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
   }
 
   finalizePendingCue();
+
+  validateBeforeNormalization(rawQuestions);
 
   const normalized = questionBank.normalizeBank({
     ...bank,
@@ -309,7 +485,12 @@ export function parseIeltsOcrPages(pages, bankMeta = {}) {
       reason: warningReason(reasons),
     }));
 
-  return { ...normalized, warnings };
+  if (normalized.questions.length !== rawQuestions.length) {
+    throw new Error("Normalization would silently drop parsed questions.");
+  }
+  const result = { ...normalized, warnings };
+  if (reviewed.approval) result.approval = reviewed.approval;
+  return result;
 }
 
 function seasonFromPath(inputPath) {
@@ -317,20 +498,28 @@ function seasonFromPath(inputPath) {
 }
 
 function runCli(argv) {
-  if (argv.length !== 2) {
-    console.error("Usage: node scripts/parse-ielts-ocr.mjs INPUT.json OUTPUT.json");
+  if (argv.length === 2) {
+    console.error("IELTS OCR parse failed: an approved review artifact is required.");
+    process.exitCode = 2;
+    return;
+  }
+  if (argv.length !== 3) {
+    console.error("Usage: node scripts/parse-ielts-ocr.mjs INPUT.json OUTPUT.json REVIEW.json");
     process.exitCode = 2;
     return;
   }
 
-  const [inputPath, outputPath] = argv;
+  const [inputPath, outputPath, reviewPath] = argv;
   try {
     const pages = JSON.parse(fs.readFileSync(inputPath, "utf8"));
+    const review = JSON.parse(fs.readFileSync(reviewPath, "utf8"));
     const season = seasonFromPath(inputPath);
     const result = parseIeltsOcrPages(pages, {
       id: season ? `ielts-${season}` : "ielts-local",
       season,
+      review,
     });
+    validateCompleteIeltsBank(result);
     fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true });
     fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
     const counts = Object.fromEntries(["part1", "part2", "part3"].map((partName) => [

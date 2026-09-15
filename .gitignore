@@ -20,6 +20,7 @@ skills-lock.json
 node_modules/
 dist/
 tmp/ielts-ocr-*.json
+data/ielts-ocr-review-*.json
 data/ielts-question-bank.local.json
 dist/*-local-with-question-bank.zip
 

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -28,6 +29,32 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
     assert.ok(releaseCheck.includes(`"${script}"`));
   }
   assert.ok(releaseCheck.includes('"question-bank.js"'));
+});
+
+test("public release file list excludes every local IELTS artifact and development script", () => {
+  if (process.env.YTD_RELEASE_PROBE_CHILD === "1") return;
+  const result = spawnSync("bash", [path.join(root, "scripts/check-release.sh"), "--print-files"], {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, YTD_RELEASE_PROBE_CHILD: "1" },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const files = result.stdout.trim().split("\n");
+  assert.ok(files.includes("question-bank.js"));
+  assert.ok(files.every((file) => !/^data\/ielts-(?:question-bank|ocr-review).*\.json$/.test(file)));
+  assert.ok(files.every((file) => !/^tmp\/ielts-ocr-.*\.json$/.test(file)));
+  assert.ok(files.every((file) => !/^scripts\//.test(file)));
+});
+
+test("private IELTS review artifacts are ignored alongside OCR and generated banks", () => {
+  const reviewArtifact = "data/ielts-ocr-review-2026-09_12.json";
+  const result = spawnSync("git", ["check-ignore", "-q", reviewArtifact], {
+    cwd: root,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test("release copy documents current scope without em dashes", () => {
