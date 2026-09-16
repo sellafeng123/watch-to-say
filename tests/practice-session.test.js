@@ -130,6 +130,11 @@ test("requires a contiguous ordered expression sequence in generated references"
   assert.equal(practice.referenceUsesExpression("After tea, I got into the zone.", target), true);
 });
 
+test("accepts a natural singular life variant for a selected day-to-day lives phrase", () => {
+  const target = { selectedText: "day-to-day lives", expression: "day-to-day lives" };
+  assert.equal(practice.referenceUsesExpression("Our day-to-day life feels calmer when we plan ahead.", target), true);
+});
+
 test("falls back to the shortest clause when the expression is absent", () => {
   assert.equal(practice.extractAnswerSentence({
     context: "This opening clause is deliberately much longer, short fallback clause; another longer clause follows.",

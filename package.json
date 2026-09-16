@@ -1,6 +1,6 @@
 {
   "name": "youtube-digest",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "Turn YouTube videos into a context-first English speaking corpus and guided practice flow.",
   "license": "MIT",

@@ -46,7 +46,7 @@ var YTD_PRACTICE = (() => {
 
   function normalizeExpressionToken(token) {
     const value = token.toLocaleLowerCase();
-    const irregular = { got: "get", gotten: "get", went: "go", gone: "go", did: "do", done: "do", was: "be", were: "be" };
+    const irregular = { got: "get", gotten: "get", went: "go", gone: "go", did: "do", done: "do", was: "be", were: "be", lives: "life" };
     if (irregular[value]) return irregular[value];
     if (value.endsWith("ies") && value.length > 4) return `${value.slice(0, -3)}y`;
     if (value.endsWith("ing") && value.length > 5) {
