@@ -17,6 +17,10 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 
 ![YouTube Digest 双语演示](YouTube%20Digest%20demo%20bilingual.png)
 
+## v2.2.1 更新
+
+- 修复参考答案已经覆盖高亮表达，但覆盖状态经过学习会话后错误显示为 `0/N` 的问题。
+
 ## v2.2.0 更新
 
 - 在 Transcript 顶部进入 **本期表达练习**，自由选择这支视频里已经高亮的表达。
@@ -71,7 +75,7 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 - 工作、日常对话和旅行可选择 **智能混合**、**仅我的题库** 或 **仅 DeepSeek**。智能混合会优先选择符合条件且未使用过的个人题目，只有需要新题时才调用 DeepSeek。
 - 公开仓库只有用于说明结构和测试的合成示例，不会作为 IELTS 内容提供给学习者。
 
-随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.2.0-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
+随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.2.1-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
 
 安装本地包时，请把该 ZIP 解压到长期保留的文件夹，在 Chrome 的“加载已解压的扩展程序”中选择这个准确文件夹，并保持它不被移动。重新构建或替换解压文件后，请在 `chrome://extensions` 中为 YouTube Digest 点击“重新加载”，再刷新已打开的 YouTube 页面。
 

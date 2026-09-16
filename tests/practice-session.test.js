@@ -275,6 +275,17 @@ function speakingRound(overrides = {}) {
   };
 }
 
+test("preserves detected expression coverage when a speaking round enters the session", () => {
+  const [item] = practice.mergePracticeHighlights([highlight()]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+
+  session = practice.addSpeakingRound(session, speakingRound({ usedExpressionIds: [item.id] }));
+
+  assert.deepEqual(session.speakingRounds[0].usedExpressionIds, [item.id]);
+});
+
 test("retries the same speaking round in place without another question ID", () => {
   const [item] = practice.mergePracticeHighlights([highlight()]);
   let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });

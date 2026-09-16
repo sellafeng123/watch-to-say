@@ -363,6 +363,12 @@ var YTD_PRACTICE = (() => {
         ? round.cuePoints.map((cuePoint) => cleanText(cuePoint, 300)).filter(Boolean).slice(0, 12)
         : [],
       reference,
+      usedExpressionIds: Array.isArray(round?.usedExpressionIds)
+        ? round.usedExpressionIds
+          .map((expressionId) => cleanText(expressionId, 200))
+          .filter((expressionId, index, ids) => expressionId && ids.indexOf(expressionId) === index)
+          .slice(0, MAX_HIGHLIGHTS)
+        : [],
       attemptCount: 1,
       outcome: null,
       createdAt: Date.now(),
