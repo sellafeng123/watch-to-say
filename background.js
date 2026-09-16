@@ -28,6 +28,8 @@ const QUESTION_BANK_IMPORT_CONCURRENCY = 3;
 const QUESTION_BANK_PREVIEW_TTL_MS = 30 * 60 * 1000;
 const QUESTION_BANK_NAME_CHARS = 120;
 const DEFAULT_QUESTION_BANK_NAME = "Learner question bank";
+const SPEAKING_REFERENCE_CHARS = 4_000;
+const SPEAKING_EXPRESSION_LIMIT = 80;
 const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
 const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
 const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
@@ -1032,6 +1034,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "getSpeakingRound") {
+    handleSpeakingRound(message.request || message)
+      .then(sendResponse)
+      .catch(() => sendResponse({ success: false, error: "INVALID_AI_RESPONSE" }));
+    return true;
+  }
+
   if (message.action === "previewQuestionBankImport") {
     previewQuestionBankImport(message.request || message)
       .then(sendResponse)
@@ -1667,6 +1676,235 @@ async function handlePracticeMaterials(request) {
     return { success: true, materials };
   } catch (error) {
     return { success: false, error: error.code || error.message || "PRACTICE_MATERIALS_FAILED", message: "暂时无法生成练习材料，请重试。" };
+  }
+}
+
+function normalizeSpeakingExpressions(value) {
+  if (!Array.isArray(value) || !value.length || value.length > SPEAKING_EXPRESSION_LIMIT) return [];
+  const seen = new Set();
+  const expressions = [];
+  for (const item of value) {
+    const expression = {
+      id: practiceMaterialText(item?.id, 120),
+      expression: practiceMaterialText(item?.expression, 240),
+      kind: practiceMaterialText(item?.kind, 40),
+      partOfSpeech: practiceMaterialText(item?.partOfSpeech, 80),
+      usageContexts: practiceMaterialText(item?.usageContexts, 500),
+      originalExamples: (Array.isArray(item?.originalExamples)
+        ? item.originalExamples
+        : Array.isArray(item?.anchors)
+          ? item.anchors.map((anchor) => anchor?.context || anchor?.selectedText)
+          : [])
+        .map((example) => practiceMaterialText(example, 500))
+        .filter(Boolean)
+        .slice(0, 3),
+    };
+    if (!expression.id || !expression.expression || seen.has(expression.id)) return [];
+    seen.add(expression.id);
+    expressions.push(expression);
+  }
+  return expressions;
+}
+
+function speakingResponseHasOnly(raw, allowedFields) {
+  return Object.keys(raw).every((key) => allowedFields.has(key));
+}
+
+function speakingReferenceFitsIeltsPart(reference, part) {
+  if (part === "part1") {
+    const sentences = reference.match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) || [];
+    return sentences.length >= 3 && sentences.length <= 5;
+  }
+  const wordCount = reference.match(/[A-Za-z0-9]+(?:['’-][A-Za-z0-9]+)*/g)?.length || 0;
+  if (part === "part2") return wordCount >= 180 && wordCount <= 300;
+  if (part === "part3") return wordCount >= 80 && wordCount <= 150;
+  return false;
+}
+
+function validateSpeakingRoundResponse(rawResponse, {
+  profile,
+  candidates = [],
+  expressionIds = [],
+  generation = false,
+  usedQuestionIds = [],
+} = {}) {
+  let parsed;
+  try {
+    parsed = typeof rawResponse === "string" ? parseLooseJson(rawResponse) : rawResponse;
+  } catch (_error) {
+    return null;
+  }
+  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object" || parsed.label !== "AI 口语练习") {
+    return null;
+  }
+  const allowedFields = generation
+    ? new Set(["label", "generatedQuestion", "reference", "usedExpressionIds"])
+    : new Set(["label", "questionId", "reference", "usedExpressionIds"]);
+  if (!speakingResponseHasOnly(parsed, allowedFields)) return null;
+  if (
+    typeof parsed.reference !== "string"
+    || !parsed.reference.trim()
+    || parsed.reference.length > SPEAKING_REFERENCE_CHARS
+    || !Array.isArray(parsed.usedExpressionIds)
+  ) return null;
+  const reference = parsed.reference.replace(/\s+/g, " ").trim();
+  const allowedExpressionIds = new Set(expressionIds);
+  const usedExpressionIds = [];
+  const seenExpressionIds = new Set();
+  for (const value of parsed.usedExpressionIds) {
+    if (
+      typeof value !== "string"
+      || !allowedExpressionIds.has(value)
+      || seenExpressionIds.has(value)
+    ) return null;
+    seenExpressionIds.add(value);
+    usedExpressionIds.push(value);
+  }
+
+  if (generation) {
+    if (profile === "ielts" || typeof parsed.generatedQuestion !== "string") return null;
+    const question = parsed.generatedQuestion.replace(/\s+/g, " ").trim();
+    if (
+      question.length < 10
+      || parsed.generatedQuestion.length > YTD_QUESTION_BANK.LIMITS.maxQuestionChars
+      || !question.endsWith("?")
+    ) return null;
+    const questionId = YTD_QUESTION_BANK.makeQuestionId({
+      bankId: `deepseek-${profile}`,
+      source: "deepseek",
+      profiles: [profile],
+      part: null,
+      topic: profile,
+      question,
+    });
+    if (new Set(usedQuestionIds).has(questionId)) return null;
+    return { questionId, question, reference, usedExpressionIds };
+  }
+
+  if (typeof parsed.questionId !== "string") return null;
+  const candidate = candidates.find((item) => item?.id === parsed.questionId);
+  if (!candidate) return null;
+  if (profile === "ielts" && !speakingReferenceFitsIeltsPart(reference, candidate.part)) return null;
+  return { questionId: candidate.id, reference, usedExpressionIds };
+}
+
+function speakingCandidatePayload(candidate) {
+  return {
+    id: candidate.id,
+    source: candidate.source,
+    part: candidate.part,
+    topic: candidate.topic,
+    question: candidate.question,
+    cuePoints: [...candidate.cuePoints],
+  };
+}
+
+async function handleSpeakingRound(request = {}) {
+  const profile = ["ielts", "work", "daily", "travel"].includes(request.profile)
+    ? request.profile
+    : "ielts";
+  const sourceMode = YTD_QUESTION_BANK.normalizeSourceMode(profile, request.sourceMode);
+  const expressions = normalizeSpeakingExpressions(request.expressions);
+  if (!expressions.length) return { success: false, error: "NO_ELIGIBLE_EXPRESSIONS" };
+  const usedQuestionIds = Array.isArray(request.usedQuestionIds)
+    ? request.usedQuestionIds.filter((id) => typeof id === "string")
+    : [];
+
+  const stored = await chrome.storage.local.get(YTD_QUESTION_BANK.STORAGE_KEY);
+  const rawBanks = boundedRawQuestionBankCollection(stored[YTD_QUESTION_BANK.STORAGE_KEY]);
+  const banks = rawBanks ? normalizeStoredLearnerBanks(rawBanks) : [];
+  const bundledBank = profile === "ielts" ? await loadBundledIeltsBank() : null;
+  const allCandidates = YTD_QUESTION_BANK.eligibleQuestions({
+    banks,
+    bundledBank,
+    profile,
+    sourceMode,
+    usedQuestionIds: [],
+  });
+  const unusedCandidates = YTD_QUESTION_BANK.eligibleQuestions({
+    banks,
+    bundledBank,
+    profile,
+    sourceMode,
+    usedQuestionIds,
+  });
+  const generation = profile !== "ielts"
+    && (sourceMode === "ai_only" || (sourceMode === "smart_mix" && unusedCandidates.length === 0));
+  if (!generation && unusedCandidates.length === 0) {
+    return {
+      success: false,
+      error: allCandidates.length ? "QUESTION_BANK_EXHAUSTED" : "QUESTION_BANK_EMPTY",
+    };
+  }
+  const candidates = generation
+    ? []
+    : YTD_QUESTION_BANK.rankCandidates({
+      questions: unusedCandidates,
+      expressions,
+      limit: YTD_QUESTION_BANK.LIMITS.maxCandidates,
+    });
+
+  try {
+    const variables = {
+      requestJson: JSON.stringify({
+        profile,
+        sourceMode,
+        expressions,
+        candidates: candidates.map(speakingCandidatePayload),
+        usedQuestionIds,
+        responseKind: generation ? "generated" : "stored",
+      }),
+    };
+    const [systemPrompt, userPrompt] = await Promise.all([
+      loadPromptSection("speaking-round.md", "System prompt", variables),
+      loadPromptSection("speaking-round.md", "User prompt", variables),
+    ]);
+    const aiResult = await callAiTranslation(systemPrompt, userPrompt, {
+      temperature: generation ? 0.5 : 0.2,
+      maxTokens: 2200,
+      responseFormat: { type: "json_object" },
+    });
+    if (!aiResult.success) return { success: false, error: "INVALID_AI_RESPONSE" };
+    const validated = validateSpeakingRoundResponse(aiResult.text, {
+      profile,
+      candidates,
+      expressionIds: expressions.map((expression) => expression.id),
+      generation,
+      usedQuestionIds,
+    });
+    if (!validated) return { success: false, error: "INVALID_AI_RESPONSE" };
+    if (generation) {
+      return {
+        success: true,
+        round: {
+          questionId: validated.questionId,
+          source: "deepseek",
+          part: null,
+          question: validated.question,
+          cuePoints: [],
+          reference: validated.reference,
+          usedExpressionIds: validated.usedExpressionIds,
+        },
+      };
+    }
+    const selected = candidates.find((candidate) => candidate.id === validated.questionId);
+    if (!selected) return { success: false, error: "INVALID_AI_RESPONSE" };
+    return {
+      success: true,
+      round: {
+        questionId: selected.id,
+        source: selected.source,
+        part: selected.part,
+        question: selected.question,
+        cuePoints: [...selected.cuePoints],
+        reference: validated.reference,
+        usedExpressionIds: validated.usedExpressionIds,
+      },
+    };
+  } catch (_error) {
+    return { success: false, error: "INVALID_AI_RESPONSE" };
   }
 }
 
@@ -2773,6 +3011,8 @@ globalThis.__YTD_TRANSLATION_TESTING__ = {
   getPracticeHighlights,
   validatePracticeMaterials,
   handlePracticeMaterials,
+  validateSpeakingRoundResponse,
+  handleSpeakingRound,
   splitQuestionBankSource,
   validateBundledIeltsBank,
   previewQuestionBankImport,

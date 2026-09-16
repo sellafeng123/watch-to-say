@@ -224,6 +224,32 @@ function entry(overrides = {}) {
   };
 }
 
+function speakingExpression(index = 1, overrides = {}) {
+  return {
+    id: `expression-${index}`,
+    expression: `useful phrase ${index}`,
+    kind: "phrase",
+    partOfSpeech: "phrase",
+    usageContexts: "work meetings",
+    originalExamples: [`I use useful phrase ${index} in meetings.`],
+    ...overrides,
+  };
+}
+
+function speakingPromptFetch(aiPayload, { bundled = null, requests = [] } = {}) {
+  const prompt = fs.existsSync(path.join(root, "prompts/speaking-round.md"))
+    ? fs.readFileSync(path.join(root, "prompts/speaking-round.md"), "utf8")
+    : "## System prompt\n\n```text\nplaceholder\n```\n\n## User prompt\n\n```text\n{requestJson}\n```";
+  return async (url, options = {}) => {
+    if (url.includes("speaking-round.md")) return { ok: true, text: async () => prompt };
+    if (url.includes("ielts-question-bank.local.json")) {
+      return bundled ? jsonResponse(bundled) : jsonResponse({}, { ok: false, status: 404 });
+    }
+    requests.push(JSON.parse(options.body));
+    return completion(JSON.stringify(typeof aiPayload === "function" ? aiPayload(requests.at(-1)) : aiPayload));
+  };
+}
+
 test("saves a prepared corpus entry as a same-video practice highlight without an Obsidian handoff", async () => {
   const { helpers, storage } = loadPracticeHelpers();
 
@@ -335,6 +361,236 @@ test("practice material generation refuses to run without a configured DeepSeek 
   });
   assert.equal(result.success, false);
   assert.equal(result.error, "NO_AI_KEY");
+});
+
+test("selects an IELTS candidate by ID and resolves exact stored question data", async () => {
+  const bank = questionBank.normalizeBank({
+    id: "learner-ielts",
+    name: "IELTS questions",
+    source: "learner_bank",
+    profiles: ["ielts"],
+    questions: Array.from({ length: 45 }, (_, index) => ({
+      part: "part1",
+      topic: `Meetings ${index}`,
+      question: `How do you prepare for meeting ${index}?`,
+      cuePoints: [`Stored cue ${index}`],
+    })),
+  });
+  const expressions = [speakingExpression(1), speakingExpression(2), speakingExpression(3)];
+  const chosen = bank.questions[0];
+  const requests = [];
+  const { helpers } = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: speakingPromptFetch({
+      label: "AI 口语练习",
+      questionId: chosen.id,
+      reference: "I prepare carefully. I review the agenda. Then I get into the zone.",
+      usedExpressionIds: [expressions[0].id],
+    }, { requests }),
+  });
+
+  const result = await helpers.handleSpeakingRound({
+    profile: "ielts",
+    sourceMode: "bundled_plus_mine",
+    expressions,
+    usedQuestionIds: [],
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(result.round)), {
+    questionId: chosen.id,
+    source: "learner_bank",
+    part: "part1",
+    question: chosen.question,
+    cuePoints: chosen.cuePoints,
+    reference: "I prepare carefully. I review the agenda. Then I get into the zone.",
+    usedExpressionIds: [expressions[0].id],
+  });
+  const requestPayload = JSON.parse(requests[0].messages[1].content);
+  assert.deepEqual(requestPayload.expressions.map((item) => item.id), expressions.map((item) => item.id));
+  assert.equal(requestPayload.candidates.length, 40);
+  assert.ok(requestPayload.candidates.every((candidate) => bank.questions.some((question) => question.id === candidate.id)));
+});
+
+test("rejects IELTS IDs outside the supplied candidate list", async () => {
+  const bank = learnerBankRecord("ielts-invalid", {
+    profiles: ["ielts"],
+    questions: [{ part: "part1", topic: "Home", question: "Do you enjoy your home?", cuePoints: [] }],
+  });
+  const { helpers } = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: speakingPromptFetch({
+      label: "AI 口语练习",
+      questionId: "question-not-offered",
+      reference: "Yes, I do. It feels peaceful. I can get into the zone there.",
+      usedExpressionIds: ["expression-1"],
+    }),
+  });
+
+  const result = await helpers.handleSpeakingRound({
+    profile: "ielts",
+    sourceMode: "bundled_plus_mine",
+    expressions: [speakingExpression(1)],
+    usedQuestionIds: [],
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "INVALID_AI_RESPONSE");
+});
+
+test("mine_only never generates and distinguishes an empty bank from exhausted questions", async () => {
+  let apiCalls = 0;
+  const noBank = loadPracticeHelpers({}, {
+    fetch: async (url) => {
+      if (url.includes("ielts-question-bank.local.json")) return jsonResponse({}, { ok: false, status: 404 });
+      apiCalls += 1;
+      throw new Error("mine_only must not call DeepSeek without a candidate");
+    },
+  });
+  const empty = await noBank.helpers.handleSpeakingRound({
+    profile: "daily",
+    sourceMode: "mine_only",
+    expressions: [speakingExpression(1)],
+    usedQuestionIds: [],
+  });
+  assert.equal(empty.error, "QUESTION_BANK_EMPTY");
+
+  const bank = learnerBankRecord("only");
+  const exhaustedHarness = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: async (url) => {
+      if (url.includes("ielts-question-bank.local.json")) return jsonResponse({}, { ok: false, status: 404 });
+      apiCalls += 1;
+      throw new Error("mine_only must not fall back to generation");
+    },
+  });
+  const exhausted = await exhaustedHarness.helpers.handleSpeakingRound({
+    profile: "daily",
+    sourceMode: "mine_only",
+    expressions: [speakingExpression(1)],
+    usedQuestionIds: [bank.questions[0].id],
+  });
+  assert.equal(exhausted.error, "QUESTION_BANK_EXHAUSTED");
+  assert.equal(apiCalls, 0);
+});
+
+test("smart_mix uses learner candidates before generation and falls back only after exhaustion", async () => {
+  const bank = learnerBankRecord("smart");
+  const expression = speakingExpression(1);
+  const storedHarness = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: speakingPromptFetch({
+      label: "AI 口语练习",
+      generatedQuestion: "What helps you focus?",
+      reference: "A quiet room helps me use useful phrase one naturally.",
+      usedExpressionIds: [expression.id],
+    }),
+  });
+  const invalidStoredResponse = await storedHarness.helpers.handleSpeakingRound({
+    profile: "daily",
+    sourceMode: "smart_mix",
+    expressions: [expression],
+    usedQuestionIds: [],
+  });
+  assert.equal(invalidStoredResponse.error, "INVALID_AI_RESPONSE");
+
+  const generatedQuestion = "What helps you prepare for a difficult day?";
+  const generatedHarness = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: speakingPromptFetch({
+      label: "AI 口语练习",
+      generatedQuestion,
+      reference: "Planning early helps me stay calm and use useful phrase one naturally.",
+      usedExpressionIds: [expression.id],
+    }),
+  });
+  const generated = await generatedHarness.helpers.handleSpeakingRound({
+    profile: "daily",
+    sourceMode: "smart_mix",
+    expressions: [expression],
+    usedQuestionIds: [bank.questions[0].id],
+  });
+  assert.equal(generated.success, true);
+  assert.equal(generated.round.source, "deepseek");
+  assert.equal(generated.round.question, generatedQuestion);
+});
+
+test("generated question IDs are deterministic and rejected when already used", async () => {
+  const generatedQuestion = "What helps you prepare for a difficult journey?";
+  const expression = speakingExpression(1);
+  const payload = {
+    label: "AI 口语练习",
+    generatedQuestion,
+    reference: "I plan ahead so I can use useful phrase one without sounding forced.",
+    usedExpressionIds: [expression.id],
+  };
+  const firstHarness = loadPracticeHelpers({}, { fetch: speakingPromptFetch(payload) });
+  const first = await firstHarness.helpers.handleSpeakingRound({
+    profile: "travel", sourceMode: "ai_only", expressions: [expression], usedQuestionIds: [],
+  });
+  const secondHarness = loadPracticeHelpers({}, { fetch: speakingPromptFetch(payload) });
+  const second = await secondHarness.helpers.handleSpeakingRound({
+    profile: "travel", sourceMode: "ai_only", expressions: [expression], usedQuestionIds: [],
+  });
+  assert.equal(first.round.questionId, second.round.questionId);
+
+  const repeatHarness = loadPracticeHelpers({}, { fetch: speakingPromptFetch(payload) });
+  const repeat = await repeatHarness.helpers.handleSpeakingRound({
+    profile: "travel", sourceMode: "ai_only", expressions: [expression], usedQuestionIds: [first.round.questionId],
+  });
+  assert.equal(repeat.error, "INVALID_AI_RESPONSE");
+});
+
+test("validates IELTS answer bands, response fields, reference bounds, and used expression IDs", () => {
+  const { helpers } = loadPracticeHelpers();
+  const expressionIds = ["expression-1", "expression-2"];
+  const candidate = { id: "known-id", part: "part1" };
+  const valid = {
+    label: "AI 口语练习",
+    questionId: candidate.id,
+    reference: "I like it. It feels calm. I can focus there.",
+    usedExpressionIds: [expressionIds[0]],
+  };
+  const context = { profile: "ielts", candidates: [candidate], expressionIds, generation: false };
+
+  assert.ok(helpers.validateSpeakingRoundResponse(valid, context));
+  for (const invalid of [
+    { ...valid, reference: "Too short." },
+    { ...valid, reference: "One. Two. Three. Four. Five. Six." },
+    { ...valid, reference: "x".repeat(4001) },
+    { ...valid, usedExpressionIds: ["not-supplied"] },
+    { ...valid, unexpected: true },
+  ]) {
+    assert.equal(helpers.validateSpeakingRoundResponse(invalid, context), null);
+  }
+
+  const words = (count) => Array.from({ length: count }, (_, index) => `word${index}`).join(" ") + ".";
+  assert.ok(helpers.validateSpeakingRoundResponse({ ...valid, reference: words(180) }, {
+    ...context, candidates: [{ id: "known-id", part: "part2" }],
+  }));
+  assert.equal(helpers.validateSpeakingRoundResponse({ ...valid, reference: words(179) }, {
+    ...context, candidates: [{ id: "known-id", part: "part2" }],
+  }), null);
+  assert.ok(helpers.validateSpeakingRoundResponse({ ...valid, reference: words(80) }, {
+    ...context, candidates: [{ id: "known-id", part: "part3" }],
+  }));
+  assert.equal(helpers.validateSpeakingRoundResponse({ ...valid, reference: words(79) }, {
+    ...context, candidates: [{ id: "known-id", part: "part3" }],
+  }), null);
+});
+
+test("getSpeakingRound dispatches the bounded background result", async () => {
+  const expression = speakingExpression(1);
+  const { dispatch } = loadPracticeHelpers({}, {
+    fetch: speakingPromptFetch({
+      label: "AI 口语练习",
+      generatedQuestion: "What makes a normal day enjoyable?",
+      reference: "A relaxed start helps me use useful phrase one naturally.",
+      usedExpressionIds: [expression.id],
+    }),
+  });
+
+  const result = await dispatch({
+    action: "getSpeakingRound",
+    request: { profile: "daily", sourceMode: "ai_only", expressions: [expression], usedQuestionIds: [] },
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(result.round.source, "deepseek");
 });
 
 test("rejects an 80,001-character bank paste before loading prompts or calling DeepSeek", async () => {

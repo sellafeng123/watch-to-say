@@ -49,6 +49,7 @@ public_allowlist=(
   "prompts/contextual-gloss.md"
   "prompts/expression-practice.md"
   "prompts/question-bank-import.md"
+  "prompts/speaking-round.md"
   "prompts/note-cleanup.md"
   "prompts/translation.md"
   "README.md"
