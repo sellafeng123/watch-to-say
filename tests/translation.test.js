@@ -509,7 +509,7 @@ test("all AI product requests use DeepSeek non-thinking and JSON behavior", asyn
   const backgroundSource = read("background.js");
   assert.equal(
     (backgroundSource.match(/await requestAiCompletion\(\{/g) || []).length,
-    7,
+    8,
   );
   assert.doesNotMatch(backgroundSource, /disableThinking/);
   for (const callPath of [

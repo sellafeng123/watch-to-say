@@ -1592,13 +1592,29 @@ async function handlePracticeMaterials(request) {
     };
     const systemPrompt = await loadPromptSection("expression-practice.md", "System prompt", variables);
     const userPrompt = await loadPromptSection("expression-practice.md", "User prompt", variables);
-    const { text } = await requestAiCompletion({
+    const messages = [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }];
+    const completionOptions = {
       temperature: 0.3,
       maxTokens: Math.min(5000, 800 + highlights.length * 480),
       responseFormat: { type: "json_object" },
-      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-    });
-    const materials = validatePracticeMaterials(text, highlights);
+    };
+    const { text } = await requestAiCompletion({ ...completionOptions, messages });
+    let materials = validatePracticeMaterials(text, highlights);
+    if (!materials) {
+      const repair = await requestAiCompletion({
+        ...completionOptions,
+        temperature: 0.1,
+        messages: [
+          ...messages,
+          { role: "assistant", content: practiceMaterialText(text, 12000) },
+          {
+            role: "user",
+            content: "The preceding JSON cannot be accepted because it is incomplete or does not preserve every target expression in three distinct examples. Return one complete corrected JSON object only, following the original contract exactly.",
+          },
+        ],
+      });
+      materials = validatePracticeMaterials(repair.text, highlights);
+    }
     if (!materials || materials.items.length !== highlights.length) {
       return { success: false, error: "INVALID_AI_RESPONSE", message: "练习材料不完整，请重试。" };
     }

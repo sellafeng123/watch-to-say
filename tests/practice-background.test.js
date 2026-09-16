@@ -250,6 +250,15 @@ function speakingPromptFetch(aiPayload, { bundled = null, requests = [] } = {}) 
   };
 }
 
+function practicePromptFetch(responses, requests = []) {
+  const prompt = fs.readFileSync(path.join(root, "prompts/expression-practice.md"), "utf8");
+  return async (url, options = {}) => {
+    if (url.includes("expression-practice.md")) return { ok: true, text: async () => prompt };
+    requests.push(JSON.parse(options.body));
+    return completion(JSON.stringify(responses[requests.length - 1]));
+  };
+}
+
 test("saves a prepared corpus entry as a same-video practice highlight without an Obsidian handoff", async () => {
   const { helpers, storage } = loadPracticeHelpers();
 
@@ -361,6 +370,52 @@ test("practice material generation refuses to run without a configured DeepSeek 
   });
   assert.equal(result.success, false);
   assert.equal(result.error, "NO_AI_KEY");
+});
+
+test("repairs one invalid AI practice-material response before reporting failure", async () => {
+  const requests = [];
+  const expectedId = "practice-5xmtub";
+  const valid = {
+    label: "AI 练习材料",
+    items: [{
+      id: expectedId,
+      internalization: {
+        promptZh: "围绕日常生活说两句。",
+        references: [
+          "My day-to-day life feels easier with a routine.",
+          "Planning meals improves our day-to-day life at home.",
+          "Travel changes her day-to-day life in surprising ways.",
+        ],
+      },
+    }],
+  };
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: practicePromptFetch([
+      { label: "AI 练习材料", items: [] },
+      valid,
+    ], requests),
+  });
+
+  const result = await helpers.handlePracticeMaterials({
+    profile: "daily",
+    videoTitle: "Daily routines",
+    highlights: [{
+      ...entry({ expression: "day-to-day lives" }),
+      id: "practice-a",
+      anchors: [{
+        timestamp: "0:18",
+        timestampSeconds: 18,
+        timestampedUrl: "https://www.youtube.com/watch?v=abc123&t=18s",
+        context: "Our day-to-day lives are different.",
+        selectedText: "day-to-day lives",
+      }],
+    }],
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.materials)), valid);
+  assert.equal(requests.length, 2);
+  assert.match(requests[1].messages.at(-1).content, /cannot be accepted/i);
 });
 
 test("sends every expression beyond eighty while bounding IELTS candidates and resolving stored data", async () => {
