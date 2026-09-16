@@ -34,6 +34,7 @@ public_allowlist=(
   "question-bank.js"
   "question-bank-ui.js"
   "practice-ui.js"
+  "practice-flow.js"
   "content.js"
   "sidepanel.html"
   "sidepanel.css"

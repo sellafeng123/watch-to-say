@@ -47,7 +47,7 @@ let currentNotes = [];
 let currentNotesFilterVideoId = null;
 let currentPracticeHighlights = [];
 let practiceRuntime = null;
-const PRACTICE_STAGES = ["listening", "internalization", "speaking"];
+const PRACTICE_STAGES = ["listening", "internalization"];
 const TRANSLATION_MESSAGE_TIMEOUT_MS = 130_000;
 const TRANSLATION_BATCH_SIZE = 3;
 
@@ -1184,20 +1184,11 @@ function closePracticeModal() {
   practiceRuntime = null;
 }
 
-function practiceItemsForStage(session, stage) {
-  return (session?.items || []).filter((item) => {
-    if (!session.selectedItemIds?.includes(item.id)) return false;
-    if (stage === "listening") return true;
-    if (stage === "internalization") return item.stages.listening === "mastered";
-    return item.stages.internalization === "mastered";
-  });
-}
-
 function practiceMaterialFor(itemId) {
   return practiceRuntime?.materials?.items?.find((item) => item.id === itemId) || null;
 }
 
-function renderPracticeError(message) {
+function renderPracticeError(message, onRetry = openPracticeSetup, titleText = "练习材料准备失败") {
   const { root } = getPracticeModalElements();
   if (!root) return;
   root.replaceChildren();
@@ -1205,7 +1196,7 @@ function renderPracticeError(message) {
   card.className = "practice-card practice-error";
   const title = document.createElement("h2");
   title.className = "practice-title";
-  title.textContent = "练习材料准备失败";
+  title.textContent = titleText;
   const copy = document.createElement("p");
   copy.className = "practice-help";
   copy.textContent = message || "暂时无法生成练习材料，请稍后重试。";
@@ -1219,152 +1210,138 @@ function renderPracticeError(message) {
   const retry = document.createElement("button");
   retry.className = "practice-primary";
   retry.type = "button";
-  retry.textContent = "重新选择";
-  retry.addEventListener("click", openPracticeSetup);
+  retry.textContent = onRetry === openPracticeSetup ? "重新选择" : "重试准备口语题";
+  retry.addEventListener("click", onRetry);
   actions.append(cancel, retry);
   card.append(title, copy, actions);
   root.append(card);
 }
 
-function openPracticeSetup() {
+async function openPracticeSetup() {
   const { root } = getPracticeModalElements();
   if (!root || !currentPracticeHighlights.length) return;
   showPracticeModal();
-  YTD_PRACTICE_UI.mountSetup({
+  const runtime = { setup: true };
+  practiceRuntime = runtime;
+  const setup = YTD_PRACTICE_UI.mountSetup({
     root,
     highlights: currentPracticeHighlights,
     onCancel: closePracticeModal,
     onStart: startPracticeSession,
   });
+  try {
+    const result = await chrome.runtime.sendMessage({ action: "getPracticeQuestionSources" });
+    if (practiceRuntime !== runtime) return;
+    setup.updateQuestionSources(result?.success ? result : { bundledAvailable: false, message: "题库信息读取失败，请检查设置。" });
+  } catch (_error) {
+    if (practiceRuntime === runtime) setup.updateQuestionSources({ bundledAvailable: false, message: "题库信息读取失败，请检查设置。" });
+  }
 }
 
-async function startPracticeSession({ selectedIds, profile }) {
+async function startPracticeSession({ selectedIds, profile, sourceMode }) {
   const selectedHighlights = currentPracticeHighlights.filter((item) => selectedIds.includes(item.id));
   const session = YTD_PRACTICE.createSession({
     video: { id: currentVideoId, title: currentVideoTitle },
     highlights: selectedHighlights,
     profile,
+    sourceMode,
   });
   const { root } = getPracticeModalElements();
   if (!root || !session.items.length) return;
-  practiceRuntime = {
-    session,
-    materials: null,
-    stageIndex: 0,
-    queue: [],
-    queueIndex: 0,
-    retryTasks: null,
-    retryIndex: 0,
-  };
-  YTD_PRACTICE_UI.mountLoading({ root });
+  const runtime = { flow: YTD_PRACTICE_FLOW.create(session), materials: null };
+  practiceRuntime = runtime;
+  YTD_PRACTICE_UI.mountLoading({ root, onExit: closePracticeModal });
   try {
     const result = await chrome.runtime.sendMessage({
       action: "getPracticeMaterials",
       request: { profile, videoTitle: currentVideoTitle, highlights: selectedHighlights },
     });
+    if (practiceRuntime !== runtime) return;
     if (!result?.success) {
       renderPracticeError(result?.message || "请检查 DeepSeek 设置后重试。");
       return;
     }
-    practiceRuntime.materials = result.materials;
-    beginPracticeStage(0);
+    runtime.materials = result.materials;
+    renderCurrentPracticeTask();
   } catch (error) {
-    renderPracticeError(error?.message);
+    if (practiceRuntime === runtime) renderPracticeError(error?.message);
   }
 }
 
-function beginPracticeStage(stageIndex) {
-  if (!practiceRuntime) return;
-  if (stageIndex >= PRACTICE_STAGES.length) {
-    beginPracticeRetries();
-    return;
-  }
-  const stage = PRACTICE_STAGES[stageIndex];
-  practiceRuntime.stageIndex = stageIndex;
-  practiceRuntime.queue = practiceItemsForStage(practiceRuntime.session, stage);
-  practiceRuntime.queueIndex = 0;
-  if (!practiceRuntime.queue.length) {
-    beginPracticeStage(stageIndex + 1);
-    return;
-  }
+function dispatchPracticeEvent(event) {
+  if (!practiceRuntime?.flow) return;
+  const { flow, effect } = YTD_PRACTICE_FLOW.reduce(practiceRuntime.flow, event);
+  practiceRuntime.flow = flow;
   renderCurrentPracticeTask();
+  if (effect) void performPracticeEffect(effect);
 }
 
-function beginPracticeRetries() {
-  if (!practiceRuntime) return;
-  practiceRuntime.retryTasks = YTD_PRACTICE.nextRetryTasks(practiceRuntime.session);
-  practiceRuntime.retryIndex = 0;
-  if (!practiceRuntime.retryTasks.length) {
-    renderPracticeSummary();
-    return;
+async function performPracticeEffect(effect) {
+  if (effect.type !== "REQUEST_SPEAKING_ROUND" || !practiceRuntime?.flow) return;
+  const runtime = practiceRuntime;
+  const pendingFlow = runtime.flow;
+  const session = pendingFlow.session;
+  try {
+    const result = await chrome.runtime.sendMessage({
+      action: "getSpeakingRound",
+      request: {
+        profile: session.profile,
+        sourceMode: session.questionSourceMode,
+        expressions: effect.expressionIds.map((id) => session.items.find((item) => item.id === id)),
+        usedQuestionIds: effect.usedQuestionIds,
+      },
+    });
+    if (practiceRuntime !== runtime || runtime.flow !== pendingFlow) return;
+    if (result?.success) dispatchPracticeEvent({ type: "SPEAKING_READY", round: result.round });
+    else {
+      const messages = {
+        QUESTION_BANK_EMPTY: "所选题库没有可用题目。可退出后重新选择题目来源。",
+        QUESTION_BANK_EXHAUSTED: "所选题库的题目已练完。可以重答当前题或完成练习，也可退出后重新选择题目来源。",
+        INVALID_AI_RESPONSE: "口语题生成结果无效，请重试。",
+      };
+      dispatchPracticeEvent({ type: "SPEAKING_FAILED", message: result?.message || messages[result?.error] || "暂时无法准备口语题，请检查 DeepSeek 设置后重试。" });
+    }
+  } catch (error) {
+    if (practiceRuntime === runtime && runtime.flow === pendingFlow) dispatchPracticeEvent({ type: "SPEAKING_FAILED", message: error?.message });
   }
-  renderCurrentPracticeTask();
 }
 
 function renderCurrentPracticeTask() {
-  if (!practiceRuntime) return;
+  if (!practiceRuntime?.flow) return;
   const { root } = getPracticeModalElements();
   if (!root) return;
-  const isRetry = Array.isArray(practiceRuntime.retryTasks);
-  const task = isRetry
-    ? practiceRuntime.retryTasks[practiceRuntime.retryIndex]
-    : null;
-  const stage = task?.stage || PRACTICE_STAGES[practiceRuntime.stageIndex];
-  const item = task
-    ? practiceRuntime.session.items.find((candidate) => candidate.id === task.itemId)
-    : practiceRuntime.queue[practiceRuntime.queueIndex];
-  const total = isRetry ? practiceRuntime.retryTasks.length : practiceRuntime.queue.length;
-  const position = (isRetry ? practiceRuntime.retryIndex : practiceRuntime.queueIndex) + 1;
-  if (!item) {
-    isRetry ? renderPracticeSummary() : beginPracticeStage(practiceRuntime.stageIndex + 1);
+  const view = YTD_PRACTICE_FLOW.currentView(practiceRuntime.flow);
+  if (view.type === "summary") {
+    YTD_PRACTICE_UI.mountSummary({ root, session: practiceRuntime.flow.session, onClose: closePracticeModal });
     return;
   }
+  if (view.type === "speaking_loading") {
+    YTD_PRACTICE_UI.mountLoading({ root, speaking: true, onExit: closePracticeModal });
+    return;
+  }
+  if (view.type === "speaking_error") {
+    renderPracticeError(view.error, () => dispatchPracticeEvent({ type: "RETRY_NEW_QUESTION" }), "口语题准备失败");
+    return;
+  }
+  if (view.type === "speaking") {
+    YTD_PRACTICE_UI.mountSpeakingRound({
+      root, ...view, onSeek: seekTo, onExit: closePracticeModal,
+      onReveal: () => dispatchPracticeEvent({ type: "REVEAL_SPEAKING" }),
+      onFinish: () => dispatchPracticeEvent({ type: "FINISH_SPEAKING" }),
+      onNeedPractice: () => dispatchPracticeEvent({ type: "OPEN_RETRY_CHOICE" }),
+      onRetrySame: () => dispatchPracticeEvent({ type: "RETRY_SAME_QUESTION" }),
+      onChangeQuestion: () => dispatchPracticeEvent({ type: "RETRY_NEW_QUESTION" }),
+      onCancelRetry: () => dispatchPracticeEvent({ type: "CANCEL_RETRY_CHOICE" }),
+    });
+    return;
+  }
+  if (!PRACTICE_STAGES.includes(view.stage)) return;
   YTD_PRACTICE_UI.mountStage({
-    root,
-    stage,
-    item,
-    material: practiceMaterialFor(item.id),
-    position,
-    total,
-    isRetry,
+    root, ...view,
+    material: practiceMaterialFor(view.item.id),
     onSeek: seekTo,
     onExit: closePracticeModal,
-    onRate: (rating) => rateCurrentPracticeTask({ itemId: item.id, stage, rating, isRetry }),
-  });
-}
-
-function rateCurrentPracticeTask({ itemId, stage, rating, isRetry }) {
-  if (!practiceRuntime) return;
-  const nextSession = YTD_PRACTICE.rateStage(practiceRuntime.session, {
-    itemId,
-    stage,
-    rating,
-    retry: isRetry,
-  });
-  if (!nextSession) return;
-  practiceRuntime.session = nextSession;
-  if (isRetry) {
-    practiceRuntime.retryIndex += 1;
-    if (practiceRuntime.retryIndex >= practiceRuntime.retryTasks.length) renderPracticeSummary();
-    else renderCurrentPracticeTask();
-    return;
-  }
-  practiceRuntime.queueIndex += 1;
-  if (practiceRuntime.queueIndex >= practiceRuntime.queue.length) {
-    beginPracticeStage(practiceRuntime.stageIndex + 1);
-  } else {
-    renderCurrentPracticeTask();
-  }
-}
-
-function renderPracticeSummary() {
-  if (!practiceRuntime) return;
-  const { root } = getPracticeModalElements();
-  if (!root) return;
-  YTD_PRACTICE_UI.mountSummary({
-    root,
-    session: practiceRuntime.session,
-    onClose: closePracticeModal,
+    onRate: (rating) => dispatchPracticeEvent({ type: "RATE_ITEM", itemId: view.item.id, stage: view.stage, rating }),
   });
 }
 

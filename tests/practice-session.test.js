@@ -3,6 +3,18 @@ const assert = require("node:assert/strict");
 
 const practice = require("../practice-session.js");
 
+test("internalization accepts listening review after an attempt but rejects unattempted listening", () => {
+  const session = practice.createSession({ highlights: [{ expression: "focus", partOfSpeech: "verb", timestampSeconds: 0 }] });
+  const itemId = session.selectedItemIds[0];
+  assert.equal(practice.rateStage(session, { itemId, stage: "internalization", rating: "mastered" }), null);
+  const reviewed = practice.rateStage(session, { itemId, stage: "listening", rating: "review" });
+  const internalized = practice.rateStage(reviewed, { itemId, stage: "internalization", rating: "mastered" });
+  assert.ok(internalized, "a completed listening attempt must allow internalization");
+  assert.equal(practice.isReadyForSpeaking(internalized), true);
+  assert.deepEqual(practice.stageCounts(internalized, "internalization"), { mastered: 1, review: 0 });
+  assert.deepEqual(practice.nextRetryTasks(internalized), [{ itemId, stage: "listening" }]);
+});
+
 test("reveals only the sentence containing the selected phrase", () => {
   assert.equal(practice.extractAnswerSentence({
     context: "I was tired. Then I got into the zone and finished. That felt great.",

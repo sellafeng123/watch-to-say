@@ -970,8 +970,60 @@ body.practice-modal-open {
 
 .practice-answer[hidden],
 .practice-rating-actions[hidden],
+.practice-speaking-actions[hidden],
+.practice-retry-choices[hidden],
 .practice-reveal[hidden] {
   display: none;
+}
+
+.practice-speaking-question,
+.practice-speaking-reference,
+.practice-inline-error {
+  overflow-wrap: anywhere;
+}
+
+.practice-cue-points {
+  margin: 0;
+  padding-left: 22px;
+  font-family: var(--font-reading);
+  line-height: 1.65;
+}
+
+.practice-expression-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.practice-expression-chip {
+  max-width: 100%;
+  border: 1px solid #cbb9e9;
+  border-radius: var(--r-sm);
+  padding: 5px 9px;
+  background: #f7f3ff;
+  color: #5d3f91;
+  font: inherit;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.practice-retry-choices,
+.practice-retry-choice {
+  display: grid;
+  gap: 8px;
+}
+
+.practice-retry-choices {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.practice-inline-error {
+  margin: 0;
+  border-left: 3px solid #b44b42;
+  padding: 10px;
+  color: var(--text);
+  font-size: 13px;
 }
 
 .practice-answer strong {

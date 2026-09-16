@@ -263,7 +263,7 @@ const YTD_PRACTICE = (() => {
 
   function stageIsAvailable(item, stage) {
     if (stage === "listening") return true;
-    if (stage === "internalization") return item.stages.listening === "mastered";
+    if (stage === "internalization") return RATINGS.has(item.stages.listening);
     return item.stages.internalization === "mastered";
   }
 
@@ -392,7 +392,7 @@ const YTD_PRACTICE = (() => {
 
   function stageIsAvailableForSummary(item, stage) {
     if (stage === "listening") return true;
-    return item.stages.listening === "mastered" || item.stages.internalization === "review";
+    return RATINGS.has(item.stages.listening) || item.stages.internalization === "review";
   }
 
   function markdownText(value) {
