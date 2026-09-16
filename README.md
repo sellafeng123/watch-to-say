@@ -64,7 +64,7 @@ Each recognition, a new AI-generated speaking question, and a new AI reference a
 
 Question sources behave as follows:
 
-- IELTS uses exact stored questions from an approved bundled local bank. If no approved local bank is installed, IELTS bundled questions are unavailable rather than replaced with the synthetic sample.
+- IELTS uses exact stored questions from an approved bundled local bank. In **Bundled plus mine**, eligible learner-bank questions can join that exact local source. If no approved local bank is installed, IELTS bundled questions are unavailable rather than replaced with the synthetic sample.
 - Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
 - The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
 

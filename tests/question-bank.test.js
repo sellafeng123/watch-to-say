@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { createHash } = require("node:crypto");
 
 const bank = require("../question-bank.js");
 
@@ -23,6 +24,105 @@ function learnerBank(overrides = {}) {
     ...overrides,
   });
 }
+
+function approvedBundledBank(overrides = {}) {
+  const part2 = {
+    bankId: "approved-ielts",
+    source: "bundled_ielts",
+    profiles: ["ielts"],
+    part: "part2",
+    topic: "A useful object",
+    question: "Describe a useful object you own.",
+    cuePoints: ["What it is"],
+    parentCueCardId: null,
+    season: "2026-09_12",
+    createdAt: 0,
+  };
+  part2.id = bank.makeQuestionId(part2);
+  const questions = [
+    {
+      bankId: "approved-ielts",
+      source: "bundled_ielts",
+      profiles: ["ielts"],
+      part: "part1",
+      topic: "Home",
+      question: "Do you like your home?",
+      cuePoints: [],
+      parentCueCardId: null,
+      season: "2026-09_12",
+      createdAt: 0,
+    },
+    part2,
+    {
+      bankId: "approved-ielts",
+      source: "bundled_ielts",
+      profiles: ["ielts"],
+      part: "part3",
+      topic: "Useful objects",
+      question: "Why do people keep useful objects?",
+      cuePoints: [],
+      parentCueCardId: part2.id,
+      season: "2026-09_12",
+      createdAt: 0,
+    },
+  ].map((question) => ({
+    ...question,
+    id: question.id || bank.makeQuestionId(question),
+  }));
+  const result = {
+    id: "approved-ielts",
+    name: "Approved IELTS bank",
+    source: "bundled_ielts",
+    profiles: ["ielts"],
+    questions,
+    approval: {
+      status: "approved",
+      schemaVersion: 1,
+      pageCount: 46,
+      reviewedPageCount: 46,
+      correctionsApplied: 0,
+      sourcePdfSha256: "a".repeat(64),
+      ocrSha256: "b".repeat(64),
+      reviewedAt: "2026-09-15T00:00:00.000Z",
+    },
+    ...overrides,
+  };
+  if (!result.approval.bankSha256) {
+    result.approval.bankSha256 = createHash("sha256")
+      .update(JSON.stringify(bank.normalizeBank(result)))
+      .digest("hex");
+  }
+  return result;
+}
+
+const nodeSha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+test("shares approved IELTS structural validation while injecting only digest calculation", async () => {
+  const approved = approvedBundledBank();
+  const digestMismatch = structuredClone(approved);
+  digestMismatch.approval.bankSha256 = "c".repeat(64);
+  const normalizationChange = structuredClone(approved);
+  normalizationChange.questions[0].question = "  Do you like your home?  ";
+  normalizationChange.approval.bankSha256 = nodeSha256(
+    JSON.stringify(bank.normalizeBank(normalizationChange)),
+  );
+  const invalidPart3Parent = structuredClone(approved);
+  invalidPart3Parent.questions[2].parentCueCardId = "missing-part2";
+  invalidPart3Parent.approval.bankSha256 = nodeSha256(
+    JSON.stringify(bank.normalizeBank(invalidPart3Parent)),
+  );
+
+  assert.equal(
+    (await bank.validateApprovedBundledIeltsBank(approved, { sha256: nodeSha256 }))?.id,
+    "approved-ielts",
+  );
+  for (const invalid of [digestMismatch, normalizationChange, invalidPart3Parent]) {
+    assert.equal(
+      await bank.validateApprovedBundledIeltsBank(invalid, { sha256: nodeSha256 }),
+      null,
+    );
+  }
+});
 
 test("makes stable IDs from normalized part topic and exact question text", () => {
   const first = bank.makeQuestionId({

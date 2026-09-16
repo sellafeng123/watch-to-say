@@ -164,6 +164,45 @@ fi
       `${JSON.stringify(approvedSample, null, 2)}\n`,
     );
 
+    const invalidVariants = [
+      {
+        ...structuredClone(approvedSample),
+        approval: { ...approvedSample.approval, bankSha256: "c".repeat(64) },
+      },
+      (() => {
+        const variant = structuredClone(approvedSample);
+        variant.questions[0].question = `  ${variant.questions[0].question}  `;
+        variant.approval.bankSha256 = crypto
+          .createHash("sha256")
+          .update(JSON.stringify(questionBank.normalizeBank(variant)))
+          .digest("hex");
+        return variant;
+      })(),
+      (() => {
+        const variant = structuredClone(approvedSample);
+        const part3 = variant.questions.find((question) => question.part === "part3");
+        part3.parentCueCardId = "missing-part2";
+        variant.approval.bankSha256 = crypto
+          .createHash("sha256")
+          .update(JSON.stringify(questionBank.normalizeBank(variant)))
+          .digest("hex");
+        return variant;
+      })(),
+    ];
+    for (const invalid of invalidVariants) {
+      fs.writeFileSync(
+        path.join(fixtureData, "ielts-question-bank.local.json"),
+        `${JSON.stringify(invalid, null, 2)}\n`,
+      );
+      const rejected = runPackage();
+      assert.notEqual(rejected.status, 0, rejected.stdout);
+      assert.match(rejected.stderr, /local question bank validation failed/i);
+    }
+    fs.writeFileSync(
+      path.join(fixtureData, "ielts-question-bank.local.json"),
+      `${JSON.stringify(approvedSample, null, 2)}\n`,
+    );
+
     const packaged = runPackage();
     assert.equal(packaged.status, 0, packaged.stderr);
     assert.match(packaged.stdout, /youtube-digest-v2\.1\.0-local-with-question-bank\.zip/);

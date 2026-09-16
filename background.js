@@ -30,7 +30,6 @@ const QUESTION_BANK_NAME_CHARS = 120;
 const DEFAULT_QUESTION_BANK_NAME = "Learner question bank";
 const SPEAKING_REFERENCE_CHARS = 4_000;
 const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
-const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
 const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
 const QUESTION_BANK_MESSAGE_ACTIONS = new Set([
   "previewQuestionBankImport",
@@ -473,78 +472,9 @@ async function sha256Hex(value) {
 }
 
 async function validateBundledIeltsBank(raw) {
-  const approval = raw?.approval;
-  if (
-    !raw
-    || raw.source !== "bundled_ielts"
-    || !Array.isArray(raw.profiles)
-    || raw.profiles.length !== 1
-    || raw.profiles[0] !== "ielts"
-    || !Array.isArray(raw.questions)
-    || raw.questions.length < 3
-    || raw.questions.length > YTD_QUESTION_BANK.LIMITS.maxQuestionsPerBank
-    || approval?.status !== "approved"
-    || approval.schemaVersion !== 1
-    || approval.pageCount !== BUNDLED_IELTS_REVIEWED_PAGE_COUNT
-    || approval.reviewedPageCount !== approval.pageCount
-    || !Number.isInteger(approval.correctionsApplied)
-    || approval.correctionsApplied < 0
-    || !/^[a-f0-9]{64}$/i.test(approval.sourcePdfSha256 || "")
-    || !/^[a-f0-9]{64}$/i.test(approval.ocrSha256 || "")
-    || !/^[a-f0-9]{64}$/i.test(approval.bankSha256 || "")
-    || !Number.isFinite(Date.parse(approval.reviewedAt || ""))
-  ) {
-    return null;
-  }
-  const normalized = YTD_QUESTION_BANK.normalizeBank(raw);
-  if (
-    !normalized
-    || !normalized.id
-    || !normalized.name
-    || raw.id !== normalized.id
-    || raw.name !== normalized.name
-    || normalized.questions.length !== raw.questions.length
-  ) {
-    return null;
-  }
-  const byId = new Map(normalized.questions.map((question) => [question.id, question]));
-  const counts = { part1: 0, part2: 0, part3: 0 };
-  for (let index = 0; index < raw.questions.length; index += 1) {
-    const original = raw.questions[index];
-    const question = normalized.questions[index];
-    if (
-      !original
-      || original.id !== question?.id
-      || original.bankId !== normalized.id
-      || original.source !== "bundled_ielts"
-      || !Array.isArray(original.profiles)
-      || original.profiles.length !== 1
-      || original.profiles[0] !== "ielts"
-      || !Object.hasOwn(counts, original.part)
-      || original.topic !== question.topic
-      || original.question !== question.question
-      || !Array.isArray(original.cuePoints)
-      || original.cuePoints.length !== question.cuePoints.length
-      || original.cuePoints.some((cuePoint, cueIndex) => cuePoint !== question.cuePoints[cueIndex])
-      || original.parentCueCardId !== question.parentCueCardId
-      || original.season !== question.season
-      || original.createdAt !== question.createdAt
-    ) {
-      return null;
-    }
-    counts[original.part] += 1;
-  }
-  if (Object.values(counts).some((count) => count === 0)) return null;
-  for (const question of normalized.questions) {
-    if (question.part === "part3" && !question.parentCueCardId) return null;
-    if (!question.parentCueCardId) continue;
-    const parent = byId.get(question.parentCueCardId);
-    if (!parent || parent.part !== "part2") return null;
-  }
-  if (await sha256Hex(JSON.stringify(normalized)) !== approval.bankSha256) {
-    return null;
-  }
-  return normalized;
+  return YTD_QUESTION_BANK.validateApprovedBundledIeltsBank(raw, {
+    sha256: sha256Hex,
+  });
 }
 
 async function loadBundledIeltsBank() {

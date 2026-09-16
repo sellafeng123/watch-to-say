@@ -1160,12 +1160,24 @@ test("fails closed for missing, malformed, draft, or incomplete bundled IELTS da
   const mismatchedDigest = approvedBundledBank();
   mismatchedDigest.questions[0].question = "Do you enjoy your home?";
   mismatchedDigest.questions[0].id = questionBank.makeQuestionId(mismatchedDigest.questions[0]);
+  const normalizationChange = approvedBundledBank();
+  normalizationChange.questions[0].question = "  Do you like your home?  ";
+  normalizationChange.approval.bankSha256 = createHash("sha256")
+    .update(JSON.stringify(questionBank.normalizeBank(normalizationChange)))
+    .digest("hex");
+  const invalidPart3Parent = approvedBundledBank();
+  invalidPart3Parent.questions[2].parentCueCardId = "missing-part2";
+  invalidPart3Parent.approval.bankSha256 = createHash("sha256")
+    .update(JSON.stringify(questionBank.normalizeBank(invalidPart3Parent)))
+    .digest("hex");
   const variants = [
     jsonResponse({}, { ok: false, status: 404 }),
     jsonResponse({ questions: "not-an-array" }),
     jsonResponse(approvedBundledBank({ approval: { status: "draft" } })),
     jsonResponse(missingDigest),
     jsonResponse(mismatchedDigest),
+    jsonResponse(normalizationChange),
+    jsonResponse(invalidPart3Parent),
     jsonResponse(approvedBundledBank({
       approval: { ...approvedBundledBank().approval, pageCount: 45, reviewedPageCount: 45 },
     })),

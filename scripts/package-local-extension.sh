@@ -38,95 +38,17 @@ const questionBank = require("./question-bank.js");
 
 const localBankPath = process.argv[2];
 const sha256 = (value) => crypto.createHash("sha256").update(value).digest("hex");
-const isDigest = (value) => typeof value === "string" && /^[a-f0-9]{64}$/i.test(value);
 
-function fail(reason) {
-  throw new Error(reason);
+async function main() {
+  const raw = JSON.parse(fs.readFileSync(localBankPath, "utf8"));
+  const normalized = await questionBank.validateApprovedBundledIeltsBank(raw, { sha256 });
+  if (!normalized) throw new Error("bank does not satisfy the approved bundled IELTS contract");
 }
 
-try {
-  const raw = JSON.parse(fs.readFileSync(localBankPath, "utf8"));
-  const approval = raw?.approval;
-  if (
-    !raw
-    || raw.source !== "bundled_ielts"
-    || !Array.isArray(raw.profiles)
-    || raw.profiles.length !== 1
-    || raw.profiles[0] !== "ielts"
-    || !Array.isArray(raw.questions)
-    || raw.questions.length < 3
-    || raw.questions.length > questionBank.LIMITS.maxQuestionsPerBank
-    || approval?.status !== "approved"
-    || approval.schemaVersion !== 1
-    || approval.pageCount !== 46
-    || approval.reviewedPageCount !== approval.pageCount
-    || !Number.isInteger(approval.correctionsApplied)
-    || approval.correctionsApplied < 0
-    || !isDigest(approval.sourcePdfSha256)
-    || !isDigest(approval.ocrSha256)
-    || !isDigest(approval.bankSha256)
-    || !Number.isFinite(Date.parse(approval.reviewedAt || ""))
-  ) {
-    fail("bank is missing a complete approved-review record");
-  }
-
-  const normalized = questionBank.normalizeBank(raw);
-  if (
-    !normalized
-    || !normalized.id
-    || !normalized.name
-    || raw.id !== normalized.id
-    || raw.name !== normalized.name
-    || normalized.questions.length !== raw.questions.length
-  ) {
-    fail("bank payload would be changed by shared question-bank normalization");
-  }
-
-  const counts = { part1: 0, part2: 0, part3: 0 };
-  const byId = new Map(normalized.questions.map((question) => [question.id, question]));
-  for (let index = 0; index < raw.questions.length; index += 1) {
-    const original = raw.questions[index];
-    const question = normalized.questions[index];
-    if (
-      !original
-      || original.id !== question?.id
-      || original.bankId !== normalized.id
-      || original.source !== "bundled_ielts"
-      || !Array.isArray(original.profiles)
-      || original.profiles.length !== 1
-      || original.profiles[0] !== "ielts"
-      || !Object.hasOwn(counts, original.part)
-      || original.topic !== question.topic
-      || original.question !== question.question
-      || !Array.isArray(original.cuePoints)
-      || original.cuePoints.length !== question.cuePoints.length
-      || original.cuePoints.some((point, pointIndex) => point !== question.cuePoints[pointIndex])
-      || original.parentCueCardId !== question.parentCueCardId
-      || original.season !== question.season
-      || original.createdAt !== question.createdAt
-    ) {
-      fail(`question ${index + 1} is not an exact shared-contract record`);
-    }
-    counts[original.part] += 1;
-  }
-  if (Object.values(counts).some((count) => count === 0)) {
-    fail("bank must contain Part 1, Part 2, and Part 3 questions");
-  }
-  for (const question of normalized.questions) {
-    if (question.part === "part3" && !question.parentCueCardId) {
-      fail("a Part 3 question is missing its Part 2 parent");
-    }
-    if (question.parentCueCardId && byId.get(question.parentCueCardId)?.part !== "part2") {
-      fail("a question has an invalid Part 2 parent");
-    }
-  }
-  if (sha256(JSON.stringify(normalized)) !== approval.bankSha256) {
-    fail("approved bank digest does not match the normalized payload");
-  }
-} catch (error) {
+main().catch((error) => {
   console.error(`Local question bank validation failed: ${error.message}`);
   process.exit(1);
-}
+});
 NODE
 
 release_files=()
