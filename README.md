@@ -15,13 +15,14 @@ YouTube Digest is a bring-your-own-key project installed locally from GitHub. It
 
 ![YouTube Digest demo](YouTube%20Digest%20demo.png)
 
-## New in v2.1.2
+## New in v2.2.0
 
 - Start **本期表达练习** from the top of Transcript and choose any saved highlights from the current video.
 - Move through listening recall, contextual internalization, and one whole-set speaking round. Every selected expression must be mastered in internalization before speaking unlocks.
 - Add your own speaking question bank by pasting text in Settings, recognizing it, reviewing the structured preview, and explicitly saving it.
 - For IELTS, use an approved exact local bank when you have prepared one. Work, daily conversation, and travel can use your bank, DeepSeek, or the documented smart fallback.
 - Retry the same speaking question without an API call, or request a different unused question when more practice is needed.
+- IELTS reference answers now make a strong attempt to use every highlighted expression. If the first answer misses any, the extension requests one natural revision and then shows the verified coverage in the speaking card.
 
 ## New in v1.2.0
 
@@ -68,7 +69,7 @@ Question sources behave as follows:
 - Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
 - The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
 
-The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.1.2-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
+The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.2.0-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
 
 To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for YouTube Digest at `chrome://extensions` and refresh open YouTube tabs.
 

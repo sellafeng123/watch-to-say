@@ -17,13 +17,14 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 
 ![YouTube Digest 双语演示](YouTube%20Digest%20demo%20bilingual.png)
 
-## v2.1.2 更新
+## v2.2.0 更新
 
 - 在 Transcript 顶部进入 **本期表达练习**，自由选择这支视频里已经高亮的表达。
 - 按 **听辨回想 → 表达内化 → 一次完整口语练习** 的顺序学习。所有已选表达都必须在内化阶段标记为掌握后，才能进入口语。
 - 在设置中粘贴自己的口语题目，识别后检查结构化预览，再明确保存为题库。
 - 雅思可使用你准备并审核过的本地精确题库。工作、日常对话和旅行可使用自己的题库、DeepSeek 或说明中的智能兜底。
 - 需要再练时，可无 API 调用地重试同一题，或请求一条未使用过的新题。
+- 雅思参考答案会优先自然融入全部高亮表达。首版答案有遗漏时，插件会自动润色一次，并在口语卡片中显示经过实际文本校验的覆盖率。
 
 ## v1.2.0 更新
 
@@ -70,7 +71,7 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 - 工作、日常对话和旅行可选择 **智能混合**、**仅我的题库** 或 **仅 DeepSeek**。智能混合会优先选择符合条件且未使用过的个人题目，只有需要新题时才调用 DeepSeek。
 - 公开仓库只有用于说明结构和测试的合成示例，不会作为 IELTS 内容提供给学习者。
 
-随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.1.2-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
+随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.2.0-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
 
 安装本地包时，请把该 ZIP 解压到长期保留的文件夹，在 Chrome 的“加载已解压的扩展程序”中选择这个准确文件夹，并保持它不被移动。重新构建或替换解压文件后，请在 `chrome://extensions` 中为 YouTube Digest 点击“重新加载”，再刷新已打开的 YouTube 页面。
 

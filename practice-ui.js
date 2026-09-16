@@ -189,14 +189,26 @@ const YTD_PRACTICE_UI = (() => {
       round.cuePoints.forEach((cue) => cues.append(el(documentRef, "li", "", cue)));
       card.append(cues);
     }
+    const usedExpressionIds = new Set(Array.isArray(round.usedExpressionIds) ? round.usedExpressionIds : []);
     const chips = el(documentRef, "div", "practice-expression-chips");
+    const expressionChips = [];
     expressions.forEach((item) => {
       const chip = el(documentRef, "button", "practice-expression-chip", item.expression);
       chip.type = "button";
       chip.setAttribute("aria-label", `${item.expression} · 跳转原句`);
       chip.addEventListener("click", () => onSeek?.(item.anchors?.[0]?.timestampSeconds || 0));
       chips.append(chip);
+      expressionChips.push({ chip, item, status: null });
     });
+    const showExpressionCoverage = () => expressionChips.forEach((record) => {
+      const used = usedExpressionIds.has(record.item.id);
+      record.chip.className = `practice-expression-chip ${used ? "is-used" : "is-unused"}`;
+      if (!used && !record.status) {
+        record.status = el(documentRef, "span", "practice-expression-status", "本题未覆盖");
+        record.chip.append(record.status);
+      }
+    });
+    if (revealed) showExpressionCoverage();
     card.append(chips, el(documentRef, "p", "practice-speak-first", "先开口完整回答，再查看口语参考。自然运用这些表达即可。"));
     if (error) {
       const notice = el(documentRef, "p", "practice-inline-error", error);
@@ -206,6 +218,7 @@ const YTD_PRACTICE_UI = (() => {
     const answer = el(documentRef, "div", "practice-answer");
     answer.hidden = !revealed;
     answer.append(el(documentRef, "strong", "", "口语参考"));
+    answer.append(el(documentRef, "p", "practice-coverage", `已覆盖 ${usedExpressionIds.size}/${expressions.length} 个高亮表达`));
     const reference = el(documentRef, "p", "practice-speaking-reference");
     const targets = [...new Set(expressions.map((item) => item.expression).filter(Boolean))].sort((a, b) => b.length - a.length);
     const text = String(round.reference || "");
@@ -232,6 +245,7 @@ const YTD_PRACTICE_UI = (() => {
       answer.hidden = false;
       actions.hidden = false;
       reveal.hidden = true;
+      showExpressionCoverage();
       onReveal?.();
     }, "practice-secondary practice-reveal");
     reveal.hidden = revealed;

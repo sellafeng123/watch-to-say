@@ -462,7 +462,7 @@ test("sends every expression beyond eighty while bounding IELTS candidates and r
     question: chosen.question,
     cuePoints: chosen.cuePoints,
     reference: "I prepare carefully. I review the agenda. Then I get into the zone.",
-    usedExpressionIds: [expressions[0].id],
+    usedExpressionIds: [],
   });
   const requestPayload = JSON.parse(requests[0].messages[1].content);
   assert.deepEqual(requestPayload.expressions.map((item) => item.id), expressions.map((item) => item.id));
@@ -631,6 +631,67 @@ test("validates IELTS answer bands, response fields, reference bounds, and used 
   assert.equal(helpers.validateSpeakingRoundResponse({ ...valid, reference: words(79) }, {
     ...context, candidates: [{ id: "known-id", part: "part3" }],
   }), null);
+});
+
+test("derives IELTS expression coverage from the reference instead of trusting claimed IDs", () => {
+  const { helpers } = loadPracticeHelpers();
+  const expressions = [
+    speakingExpression(1, { expression: "get into the zone" }),
+    speakingExpression(2, { expression: "break the ice" }),
+  ];
+  const candidate = { id: "known-id", part: "part1" };
+  const result = helpers.validateSpeakingRoundResponse({
+    label: "AI 口语练习",
+    questionId: candidate.id,
+    reference: "I usually get into the zone after coffee. It helps me concentrate. Then I can work efficiently.",
+    usedExpressionIds: expressions.map((expression) => expression.id),
+  }, {
+    profile: "ielts",
+    candidates: [candidate],
+    expressions,
+    expressionIds: expressions.map((expression) => expression.id),
+    generation: false,
+  });
+
+  assert.deepEqual(JSON.parse(JSON.stringify(result.usedExpressionIds)), [expressions[0].id]);
+});
+
+test("revises an IELTS reference once to cover missing highlighted expressions", async () => {
+  const expressions = [
+    speakingExpression(1, { expression: "get into the zone" }),
+    speakingExpression(2, { expression: "break the ice" }),
+  ];
+  const bank = learnerBankRecord("ielts-coverage", {
+    profiles: ["ielts"],
+    questions: [{ part: "part1", topic: "Conversations", question: "Do you enjoy meeting new people?", cuePoints: [] }],
+  });
+  const requests = [];
+  const { helpers } = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
+    fetch: speakingPromptFetch(() => requests.length === 1 ? {
+      label: "AI 口语练习",
+      questionId: bank.questions[0].id,
+      reference: "Yes, I do. I usually get into the zone once a conversation starts. It makes social events enjoyable.",
+      usedExpressionIds: [expressions[0].id],
+    } : {
+      label: "AI 口语练习",
+      questionId: bank.questions[0].id,
+      reference: "Yes, I do. I break the ice with a simple question. After that, I usually get into the zone and enjoy the conversation.",
+      usedExpressionIds: expressions.map((expression) => expression.id),
+    }, { requests }),
+  });
+
+  const result = await helpers.handleSpeakingRound({
+    profile: "ielts",
+    sourceMode: "bundled_plus_mine",
+    expressions,
+    usedQuestionIds: [],
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(requests.length, 2);
+  assert.deepEqual(JSON.parse(JSON.stringify(result.round.usedExpressionIds)), expressions.map((expression) => expression.id));
+  assert.match(result.round.reference, /break the ice/i);
+  assert.match(requests[1].messages.at(-1).content, /missing highlighted expressions/i);
 });
 
 test("getSpeakingRound dispatches the bounded background result", async () => {

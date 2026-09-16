@@ -1007,6 +1007,32 @@ body.practice-modal-open {
   cursor: pointer;
 }
 
+.practice-expression-chip.is-used {
+  border-color: #89b69a;
+  background: #eef8f1;
+  color: #336847;
+}
+
+.practice-expression-chip.is-unused {
+  border-style: dashed;
+  background: #f7f5f2;
+  color: var(--text-muted);
+}
+
+.practice-expression-status {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.practice-answer .practice-coverage {
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
 .practice-retry-choices,
 .practice-retry-choice {
   display: grid;

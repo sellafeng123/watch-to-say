@@ -1668,9 +1668,20 @@ function speakingReferenceFitsIeltsPart(reference, part) {
   return false;
 }
 
+function speakingReferenceExpressionIds(reference, expressions) {
+  if (!Array.isArray(expressions)) return [];
+  return expressions
+    .filter((item) => YTD_PRACTICE.referenceUsesExpression(reference, {
+      selectedText: item.expression,
+      expression: item.expression,
+    }))
+    .map((item) => item.id);
+}
+
 function validateSpeakingRoundResponse(rawResponse, {
   profile,
   candidates = [],
+  expressions = [],
   expressionIds = [],
   generation = false,
   usedQuestionIds = [],
@@ -1708,6 +1719,10 @@ function validateSpeakingRoundResponse(rawResponse, {
     usedExpressionIds.push(value);
   }
 
+  const detectedExpressionIds = expressions.length
+    ? speakingReferenceExpressionIds(reference, expressions)
+    : usedExpressionIds;
+
   if (generation) {
     if (profile === "ielts" || typeof parsed.generatedQuestion !== "string") return null;
     const question = parsed.generatedQuestion.replace(/\s+/g, " ").trim();
@@ -1725,14 +1740,14 @@ function validateSpeakingRoundResponse(rawResponse, {
       question,
     });
     if (new Set(usedQuestionIds).has(questionId)) return null;
-    return { questionId, question, reference, usedExpressionIds };
+    return { questionId, question, reference, usedExpressionIds: detectedExpressionIds };
   }
 
   if (typeof parsed.questionId !== "string") return null;
   const candidate = candidates.find((item) => item?.id === parsed.questionId);
   if (!candidate) return null;
   if (profile === "ielts" && !speakingReferenceFitsIeltsPart(reference, candidate.part)) return null;
-  return { questionId: candidate.id, reference, usedExpressionIds };
+  return { questionId: candidate.id, reference, usedExpressionIds: detectedExpressionIds };
 }
 
 function speakingCandidatePayload(candidate) {
@@ -1812,14 +1827,52 @@ async function handleSpeakingRound(request = {}) {
       responseFormat: { type: "json_object" },
     });
     if (!aiResult.success) return { success: false, error: "INVALID_AI_RESPONSE" };
-    const validated = validateSpeakingRoundResponse(aiResult.text, {
+    let validated = validateSpeakingRoundResponse(aiResult.text, {
       profile,
       candidates,
+      expressions,
       expressionIds: expressions.map((expression) => expression.id),
       generation,
       usedQuestionIds,
     });
     if (!validated) return { success: false, error: "INVALID_AI_RESPONSE" };
+    if (profile === "ielts" && validated.usedExpressionIds.length < expressions.length) {
+      const selectedCandidate = candidates.find((candidate) => candidate.id === validated.questionId);
+      const usedIds = new Set(validated.usedExpressionIds);
+      const missingExpressions = expressions
+        .filter((expression) => !usedIds.has(expression.id))
+        .map((expression) => ({ id: expression.id, expression: expression.expression }));
+      const revisionRequest = [
+        "The previous IELTS reference answer has missing highlighted expressions.",
+        "Keep the exact questionId and IELTS Part. Rewrite the reference answer so it naturally includes as many missing expressions as possible while preserving the required answer length and authentic spoken English.",
+        "Return the same JSON contract only. usedExpressionIds must list only expressions that really appear in the revised reference.",
+        JSON.stringify({
+          questionId: validated.questionId,
+          candidate: selectedCandidate ? speakingCandidatePayload(selectedCandidate) : null,
+          previousReference: validated.reference,
+          missingExpressions,
+          expressions,
+        }),
+      ].join("\n");
+      const revision = await callAiTranslation(systemPrompt, revisionRequest, {
+        temperature: 0.2,
+        maxTokens: 2200,
+        responseFormat: { type: "json_object" },
+      });
+      if (revision.success && selectedCandidate) {
+        const revised = validateSpeakingRoundResponse(revision.text, {
+          profile,
+          candidates: [selectedCandidate],
+          expressions,
+          expressionIds: expressions.map((expression) => expression.id),
+          generation: false,
+          usedQuestionIds,
+        });
+        if (revised && revised.usedExpressionIds.length > validated.usedExpressionIds.length) {
+          validated = revised;
+        }
+      }
+    }
     if (generation) {
       return {
         success: true,

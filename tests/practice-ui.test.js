@@ -133,10 +133,10 @@ test("setup disables sources only during metadata loading and blocks IELTS with 
   assert.equal(root.querySelector(".practice-primary").disabled, false);
 });
 
-test("one speaking question, cue list, all chips, safe highlighted reference and overall actions obey speak-first gating", () => {
+test("one speaking question, cue list, expression coverage, safe highlighted reference and overall actions obey speak-first gating", () => {
   const { root } = createFakeDom();
   const events = [];
-  practiceUi.mountSpeakingRound({ root, round: { part: "part2", question: "Describe <img src=x> a day.", cuePoints: ["when", "<script>where</script>"], reference: "I <img src=x> get into the zone & focus." }, expressions: [{ id: "a", expression: "get into the zone", anchors: [{ timestampSeconds: 18 }] }, { id: "b", expression: "<b>focus</b>" }], position: 1,
+  practiceUi.mountSpeakingRound({ root, round: { part: "part2", question: "Describe <img src=x> a day.", cuePoints: ["when", "<script>where</script>"], reference: "I <img src=x> get into the zone & focus.", usedExpressionIds: ["a"] }, expressions: [{ id: "a", expression: "get into the zone", anchors: [{ timestampSeconds: 18 }] }, { id: "b", expression: "<b>focus</b>" }], position: 1,
     onReveal: () => events.push("reveal"), onFinish: () => events.push("finish"), onNeedPractice: () => events.push("practice"), onSeek: (value) => events.push(value) });
   assert.equal(root.querySelectorAll(".practice-speaking-question").length, 1);
   assert.match(root.textContent, /IELTS Part 2/);
@@ -149,6 +149,10 @@ test("one speaking question, cue list, all chips, safe highlighted reference and
   assert.equal(root.querySelector(".practice-reveal").textContent, "口语参考");
   click(root.querySelector(".practice-reveal"));
   assert.equal(root.querySelector(".practice-answer").hidden, false);
+  assert.equal(root.querySelector(".practice-coverage").textContent, "已覆盖 1/2 个高亮表达");
+  const unusedChip = root.querySelectorAll(".practice-expression-chip")[1];
+  assert.match(unusedChip.className, /is-unused/);
+  assert.equal(root.querySelector(".practice-expression-status").textContent, "本题未覆盖");
   assert.equal(root.querySelector("mark").textContent, "get into the zone");
   assert.equal(root.querySelector("img"), null);
   assert.equal(root.querySelector("script"), null);

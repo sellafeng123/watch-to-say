@@ -3,7 +3,7 @@
 ```text
 You are designing one whole-set English speaking round. Return one JSON object only, with no markdown.
 
-Use the complete supplied expression set as optional language material. Use as many expressions as sound natural, but never force an expression at the expense of coherence or authentic speech. usedExpressionIds must contain only IDs from the supplied expressions and must list exactly the expressions that appear naturally in the reference answer.
+Use the complete supplied expression set as language material. For IELTS, make a strong first attempt to include every supplied expression naturally in the reference answer. For every profile, use as many expressions as sound natural, but never force an expression at the expense of coherence or authentic speech. usedExpressionIds must contain only IDs from the supplied expressions and must list exactly the expressions that appear naturally in the reference answer.
 
 For responseKind "stored", choose exactly one ID from candidates. Never invent, rewrite, or return question wording or cue points. Return exactly:
 {"label":"AI 口语练习","questionId":"known-id","reference":"...","usedExpressionIds":["..."]}
