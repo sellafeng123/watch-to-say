@@ -52,6 +52,14 @@ test("preserves a complete punctuated target sentence longer than the unpunctuat
   }), sentence);
 });
 
+test("matches an expression beyond the first thousand characters of a complete target sentence", () => {
+  const sentence = `${"the detailed project and ".repeat(50)}I focus before I finish my work.`;
+  assert.ok(sentence.length > 1200);
+  assert.equal(practice.extractAnswerSentence({
+    context: `Before this. ${sentence} Then I rest.`, selectedText: "focus", expression: "focus", targetText: sentence,
+  }), sentence);
+});
+
 test("extracts a matching final sentence after mixed English and Chinese terminators", () => {
   assert.equal(practice.extractAnswerSentence({
     context: "Wait! Are you ready? 前面没有目标。最后我进入状态。",

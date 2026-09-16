@@ -67,7 +67,7 @@ var YTD_PRACTICE = (() => {
   }
 
   function referenceUsesExpression(text, { selectedText, expression } = {}) {
-    const source = cleanText(text, 1000).toLocaleLowerCase();
+    const source = cleanText(text, 4000).toLocaleLowerCase();
     const selected = cleanText(selectedText, 300).toLocaleLowerCase();
     return Boolean(source && ((selected && source.includes(selected)) || inflectedExpressionSpan(source, expression)));
   }
