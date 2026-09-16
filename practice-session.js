@@ -1,6 +1,9 @@
 const YTD_PRACTICE = (() => {
-  const STAGES = ["listening", "internalization", "speaking"];
+  const STAGES = ["listening", "internalization"];
   const RATINGS = new Set(["mastered", "review"]);
+  const SPEAKING_OUTCOMES = new Set(["needs_practice", "finished"]);
+  const SPEAKING_SOURCES = new Set(["bundled_ielts", "learner_bank", "deepseek"]);
+  const SPEAKING_PARTS = new Set(["part1", "part2", "part3"]);
   const KINDS = new Set(["word", "phrase", "sentence_frame"]);
   const PROFILES = {
     ielts: "雅思口语题型与高频主题",
@@ -227,22 +230,35 @@ const YTD_PRACTICE = (() => {
     return `${Math.floor(safeSeconds / 60)}:${String(safeSeconds % 60).padStart(2, "0")}`;
   }
 
-  function createSession({ video, highlights, profile = "ielts" } = {}) {
+  function createSession({ video, highlights, profile = "ielts", sourceMode } = {}) {
     const items = mergePracticeHighlights(highlights).map((highlight) => ({
       ...highlight,
-      stages: { listening: "not_started", internalization: "not_started", speaking: "not_started" },
+      stages: { listening: "not_started", internalization: "not_started" },
     }));
     const videoId = cleanText(video?.id, 100);
+    const normalizedProfile = Object.hasOwn(PROFILES, profile) ? profile : "ielts";
     return {
       id: `session-${makeId(`${videoId}:${items.map((item) => item.id).join(",")}`, "practice")}`,
       video: { id: videoId, title: cleanText(video?.title, 500) },
-      profile: Object.hasOwn(PROFILES, profile) ? profile : "ielts",
+      profile: normalizedProfile,
+      questionSourceMode: normalizeQuestionSourceMode(normalizedProfile, sourceMode),
       selectedItemIds: items.map((item) => item.id),
       items,
       retriedStageKeys: [],
+      speakingExpressionIds: [],
+      speakingRounds: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
+  }
+
+  function normalizeQuestionSourceMode(profile, sourceMode) {
+    if (typeof YTD_QUESTION_BANK !== "undefined" && typeof YTD_QUESTION_BANK.normalizeSourceMode === "function") {
+      return YTD_QUESTION_BANK.normalizeSourceMode(profile, sourceMode);
+    }
+    return profile === "ielts"
+      ? (["bundled", "bundled_plus_mine"].includes(sourceMode) ? sourceMode : "bundled")
+      : (["smart_mix", "mine_only", "ai_only"].includes(sourceMode) ? sourceMode : "smart_mix");
   }
 
   function stageIsAvailable(item, stage) {
@@ -262,7 +278,8 @@ const YTD_PRACTICE = (() => {
     const retriedStageKeys = retry && !session.retriedStageKeys.includes(stageKey)
       ? [...session.retriedStageKeys, stageKey]
       : [...session.retriedStageKeys];
-    return { ...session, items, retriedStageKeys, updatedAt: Date.now() };
+    const nextSession = { ...session, items, retriedStageKeys, updatedAt: Date.now() };
+    return snapshotSpeakingExpressions(nextSession);
   }
 
   function selectedItems(session) {
@@ -270,10 +287,99 @@ const YTD_PRACTICE = (() => {
   }
 
   function nextRetryTasks(session) {
-    return selectedItems(session).flatMap((item) => STAGES
-      .filter((stage) => item.stages[stage] === "review")
-      .map((stage) => ({ itemId: item.id, stage }))
-      .filter((task) => !session.retriedStageKeys?.includes(`${task.itemId}:${task.stage}`)));
+    return selectedItems(session)
+      .filter((item) => item.stages.listening === "review")
+      .map((item) => ({ itemId: item.id, stage: "listening" }))
+      .filter((task) => !session.retriedStageKeys?.includes(`${task.itemId}:${task.stage}`));
+  }
+
+  function internalizationReviewItems(session) {
+    return selectedItems(session).filter((item) => item.stages.internalization === "review");
+  }
+
+  function isReadyForSpeaking(session) {
+    const items = selectedItems(session);
+    return items.length > 0 && items.every((item) => item.stages.internalization === "mastered");
+  }
+
+  function snapshotSpeakingExpressions(session) {
+    if (!isReadyForSpeaking(session) || session.speakingExpressionIds?.length) return session;
+    return { ...session, speakingExpressionIds: selectedItems(session).map((item) => item.id) };
+  }
+
+  function speakingItems(session) {
+    if (!isReadyForSpeaking(session)) return [];
+    const expressionIds = new Set(Array.isArray(session?.speakingExpressionIds) ? session.speakingExpressionIds : []);
+    return selectedItems(session).filter((item) => expressionIds.has(item.id));
+  }
+
+  function normalizeSpeakingRound(round) {
+    const questionId = cleanText(round?.questionId, 200);
+    const source = SPEAKING_SOURCES.has(round?.source) ? round.source : "";
+    const question = cleanText(round?.question, 800);
+    const reference = cleanText(round?.reference, 4000);
+    if (!questionId || !source || !question || !reference) return null;
+    return {
+      id: `round-${makeId(questionId, "speaking")}`,
+      questionId,
+      source,
+      part: SPEAKING_PARTS.has(round?.part) ? round.part : null,
+      question,
+      cuePoints: Array.isArray(round?.cuePoints)
+        ? round.cuePoints.map((cuePoint) => cleanText(cuePoint, 300)).filter(Boolean).slice(0, 12)
+        : [],
+      reference,
+      attemptCount: 1,
+      outcome: null,
+      createdAt: Date.now(),
+    };
+  }
+
+  function currentUnfinishedRound(session) {
+    const rounds = Array.isArray(session?.speakingRounds) ? session.speakingRounds : [];
+    const current = rounds.at(-1);
+    return current?.outcome === null ? current : null;
+  }
+
+  function addSpeakingRound(session, round) {
+    if (!isReadyForSpeaking(session) || currentUnfinishedRound(session)) return null;
+    const normalized = normalizeSpeakingRound(round);
+    if (!normalized || usedQuestionIds(session).includes(normalized.questionId)) return null;
+    return {
+      ...session,
+      speakingRounds: [...(session.speakingRounds || []), normalized],
+      updatedAt: Date.now(),
+    };
+  }
+
+  function retrySameSpeakingRound(session, { roundId } = {}) {
+    const current = currentUnfinishedRound(session);
+    if (!current || current.id !== roundId) return null;
+    return {
+      ...session,
+      speakingRounds: session.speakingRounds.map((round) => round.id === roundId
+        ? { ...round, attemptCount: round.attemptCount + 1 }
+        : round),
+      updatedAt: Date.now(),
+    };
+  }
+
+  function finishSpeakingRound(session, { roundId, outcome } = {}) {
+    const current = currentUnfinishedRound(session);
+    if (!current || current.id !== roundId || !SPEAKING_OUTCOMES.has(outcome)) return null;
+    return {
+      ...session,
+      speakingRounds: session.speakingRounds.map((round) => round.id === roundId
+        ? { ...round, outcome }
+        : round),
+      updatedAt: Date.now(),
+    };
+  }
+
+  function usedQuestionIds(session) {
+    return (Array.isArray(session?.speakingRounds) ? session.speakingRounds : [])
+      .map((round) => cleanText(round?.questionId, 200))
+      .filter((questionId, index, ids) => questionId && ids.indexOf(questionId) === index);
   }
 
   function stageCounts(session, stage) {
@@ -286,8 +392,7 @@ const YTD_PRACTICE = (() => {
 
   function stageIsAvailableForSummary(item, stage) {
     if (stage === "listening") return true;
-    if (stage === "internalization") return item.stages.listening === "mastered" || item.stages.internalization === "review";
-    return item.stages.internalization === "mastered" || item.stages.speaking === "review";
+    return item.stages.listening === "mastered" || item.stages.internalization === "review";
   }
 
   function markdownText(value) {
@@ -295,7 +400,16 @@ const YTD_PRACTICE = (() => {
   }
 
   function stageLabel(stage) {
-    return { listening: "听辨", internalization: "内化", speaking: "输出" }[stage] || stage;
+    return { listening: "听辨", internalization: "内化" }[stage] || stage;
+  }
+
+  function speakingRoundCounts(session) {
+    const rounds = Array.isArray(session?.speakingRounds) ? session.speakingRounds : [];
+    return {
+      finished: rounds.filter((round) => round.outcome === "finished").length,
+      needsPractice: rounds.filter((round) => round.outcome === "needs_practice").length,
+      retries: rounds.reduce((total, round) => total + Math.max(0, (Number(round.attemptCount) || 1) - 1), 0),
+    };
   }
 
   function buildPracticeSummaryMarkdown(session, date = new Date()) {
@@ -308,6 +422,8 @@ const YTD_PRACTICE = (() => {
       const counts = stageCounts(session, stage);
       lines.push(`- ${stageLabel(stage)}：${counts.mastered} 会 / ${counts.review} 待复习`);
     });
+    const speaking = speakingRoundCounts(session);
+    lines.push(`- 口语输出：完成 ${speaking.finished} 题 / 需要再练 ${speaking.needsPractice} 题 / 原题重答 ${speaking.retries} 次`);
     const pending = selectedItems(session).flatMap((item) => STAGES
       .filter((stage) => item.stages[stage] === "review")
       .map((stage) => `${markdownText(item.expression)}（${stageLabel(stage)}）`));
@@ -325,6 +441,13 @@ const YTD_PRACTICE = (() => {
     createSession,
     rateStage,
     nextRetryTasks,
+    internalizationReviewItems,
+    isReadyForSpeaking,
+    speakingItems,
+    addSpeakingRound,
+    retrySameSpeakingRound,
+    finishSpeakingRound,
+    usedQuestionIds,
     stageCounts,
     buildPracticeSummaryMarkdown,
   };

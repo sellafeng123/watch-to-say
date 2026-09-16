@@ -140,7 +140,7 @@ test("keeps different parts of speech as independent practice highlights", () =>
   assert.notEqual(highlights[0].id, highlights[1].id);
 });
 
-test("creates a session with every supplied highlight selected and all stages unstarted", () => {
+test("creates a session with every supplied highlight selected and only listening and internalization stages", () => {
   const [item] = practice.mergePracticeHighlights([highlight()]);
   const session = practice.createSession({
     video: { id: "video-123", title: "A study video" },
@@ -152,8 +152,10 @@ test("creates a session with every supplied highlight selected and all stages un
   assert.deepEqual(session.items[0].stages, {
     listening: "not_started",
     internalization: "not_started",
-    speaking: "not_started",
   });
+  assert.equal(session.questionSourceMode, "bundled");
+  assert.deepEqual(session.speakingExpressionIds, []);
+  assert.deepEqual(session.speakingRounds, []);
 });
 
 test("does not let a later stage be rated before its prerequisite is mastered", () => {
@@ -170,7 +172,7 @@ test("does not let a later stage be rated before its prerequisite is mastered", 
   assert.equal(session.items[0].stages.internalization, "not_started");
 });
 
-test("queues failed stages for exactly one retry and never creates a retry loop", () => {
+test("keeps listening review to one retry while internalization review remains repeatable", () => {
   const [item] = practice.mergePracticeHighlights([highlight()]);
   let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
 
@@ -180,20 +182,124 @@ test("queues failed stages for exactly one retry and never creates a retry loop"
   session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "review", retry: true });
   assert.deepEqual(practice.nextRetryTasks(session), []);
   assert.equal(session.items[0].stages.listening, "review");
+
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "review" });
+  assert.deepEqual(practice.internalizationReviewItems(session).map((item) => item.id), [item.id]);
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "review" });
+  assert.deepEqual(practice.internalizationReviewItems(session).map((item) => item.id), [item.id]);
 });
 
-test("builds an approved concise Obsidian practice summary without a corpus table", () => {
+test("locks speaking until every selected expression is mastered and snapshots the complete set", () => {
+  const items = practice.mergePracticeHighlights([
+    highlight(),
+    highlight({ expression: "keep a notebook", timestampSeconds: 44, selectedText: "keep a notebook" }),
+  ]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: items });
+
+  session = practice.rateStage(session, { itemId: items[0].id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: items[0].id, stage: "internalization", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: items[1].id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: items[1].id, stage: "internalization", rating: "review" });
+
+  assert.equal(practice.isReadyForSpeaking(session), false);
+  assert.deepEqual(session.speakingExpressionIds, []);
+  assert.deepEqual(practice.speakingItems(session), []);
+
+  const ready = practice.rateStage(session, { itemId: items[1].id, stage: "internalization", rating: "mastered" });
+  assert.equal(practice.isReadyForSpeaking(ready), true);
+  assert.deepEqual(ready.speakingExpressionIds, items.map((item) => item.id));
+  assert.deepEqual(practice.speakingItems(ready).map((item) => item.id), items.map((item) => item.id));
+  assert.deepEqual(session.speakingExpressionIds, []);
+
+  const reviewedAgain = practice.rateStage(ready, { itemId: items[0].id, stage: "internalization", rating: "review" });
+  assert.equal(practice.isReadyForSpeaking(reviewedAgain), false);
+  assert.deepEqual(practice.speakingItems(reviewedAgain), []);
+  assert.equal(practice.addSpeakingRound(reviewedAgain, speakingRound()), null);
+});
+
+function speakingRound(overrides = {}) {
+  return {
+    questionId: "question-1",
+    source: "learner_bank",
+    part: "part2",
+    question: "Describe a study habit that works for you.",
+    cuePoints: ["what it is", "why it works"],
+    reference: "I keep a notebook and get into the zone after coffee.",
+    ...overrides,
+  };
+}
+
+test("retries the same speaking round in place without another question ID", () => {
   const [item] = practice.mergePracticeHighlights([highlight()]);
   let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
   session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
-  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "review" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  session = practice.addSpeakingRound(session, speakingRound());
+
+  const retried = practice.retrySameSpeakingRound(session, { roundId: session.speakingRounds[0].id });
+  assert.equal(retried.speakingRounds.length, 1);
+  assert.equal(retried.speakingRounds[0].questionId, "question-1");
+  assert.equal(retried.speakingRounds[0].attemptCount, 2);
+  assert.deepEqual(practice.usedQuestionIds(retried), ["question-1"]);
+  assert.equal(session.speakingRounds[0].attemptCount, 1);
+});
+
+test("changes question only after recording needs_practice and rejects duplicate or empty rounds", () => {
+  const [item] = practice.mergePracticeHighlights([highlight()]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  session = practice.addSpeakingRound(session, speakingRound());
+
+  const needsPractice = practice.finishSpeakingRound(session, {
+    roundId: session.speakingRounds[0].id,
+    outcome: "needs_practice",
+  });
+  assert.equal(needsPractice.speakingRounds[0].outcome, "needs_practice");
+  assert.equal(practice.addSpeakingRound(needsPractice, speakingRound()), null);
+  assert.equal(practice.addSpeakingRound(needsPractice, speakingRound({ questionId: "question-2", reference: "" })), null);
+
+  const nextQuestion = practice.addSpeakingRound(needsPractice, speakingRound({ questionId: "question-2" }));
+  assert.deepEqual(practice.usedQuestionIds(nextQuestion), ["question-1", "question-2"]);
+});
+
+test("finishing a speaking round leaves unresolved listening review for final review and rejects item speaking ratings", () => {
+  const [item] = practice.mergePracticeHighlights([highlight()]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  session = practice.addSpeakingRound(session, speakingRound());
+  const withPendingListening = {
+    ...session,
+    items: session.items.map((candidate) => candidate.id === item.id
+      ? { ...candidate, stages: { ...candidate.stages, listening: "review" } }
+      : candidate),
+  };
+
+  const finished = practice.finishSpeakingRound(withPendingListening, {
+    roundId: withPendingListening.speakingRounds[0].id,
+    outcome: "finished",
+  });
+  assert.deepEqual(practice.nextRetryTasks(finished), [{ itemId: item.id, stage: "listening" }]);
+  assert.equal(practice.rateStage(finished, { itemId: item.id, stage: "speaking", rating: "mastered" }), null);
+});
+
+test("builds a concise summary with whole-set speaking rounds and pending review", () => {
+  const [item] = practice.mergePracticeHighlights([highlight()]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  session = practice.addSpeakingRound(session, speakingRound());
+  session = practice.retrySameSpeakingRound(session, { roundId: session.speakingRounds[0].id });
+  session = practice.finishSpeakingRound(session, { roundId: session.speakingRounds[0].id, outcome: "needs_practice" });
 
   const markdown = practice.buildPracticeSummaryMarkdown(session, new Date("2026-09-14T00:00:00Z"));
   assert.match(markdown, /^## 本期表达练习 · 2026-09-14$/m);
   assert.match(markdown, /输出档案：雅思口语题型与高频主题/);
   assert.match(markdown, /听辨：1 会 \/ 0 待复习/);
-  assert.match(markdown, /内化：0 会 \/ 1 待复习/);
-  assert.match(markdown, /输出：0 会 \/ 0 待复习/);
-  assert.match(markdown, /get into the zone（内化）/);
+  assert.match(markdown, /内化：1 会 \/ 0 待复习/);
+  assert.match(markdown, /口语输出：完成 0 题 \/ 需要再练 1 题 \/ 原题重答 1 次/);
+  assert.match(markdown, /待复习：—/);
   assert.doesNotMatch(markdown, /语料总表/);
 });
