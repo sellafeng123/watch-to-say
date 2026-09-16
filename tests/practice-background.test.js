@@ -363,7 +363,7 @@ test("practice material generation refuses to run without a configured DeepSeek 
   assert.equal(result.error, "NO_AI_KEY");
 });
 
-test("selects an IELTS candidate by ID and resolves exact stored question data", async () => {
+test("sends every expression beyond eighty while bounding IELTS candidates and resolving stored data", async () => {
   const bank = questionBank.normalizeBank({
     id: "learner-ielts",
     name: "IELTS questions",
@@ -376,15 +376,19 @@ test("selects an IELTS candidate by ID and resolves exact stored question data",
       cuePoints: [`Stored cue ${index}`],
     })),
   });
-  const expressions = [speakingExpression(1), speakingExpression(2), speakingExpression(3)];
-  const chosen = bank.questions[0];
+  const expressions = Array.from({ length: 81 }, (_, index) => speakingExpression(index + 1));
+  let chosen;
   const requests = [];
   const { helpers } = loadPracticeHelpers({ [questionBank.STORAGE_KEY]: [bank] }, {
-    fetch: speakingPromptFetch({
-      label: "AI 口语练习",
-      questionId: chosen.id,
-      reference: "I prepare carefully. I review the agenda. Then I get into the zone.",
-      usedExpressionIds: [expressions[0].id],
+    fetch: speakingPromptFetch((request) => {
+      const requestPayload = JSON.parse(request.messages[1].content);
+      chosen = bank.questions.find((question) => question.id === requestPayload.candidates[0].id);
+      return {
+        label: "AI 口语练习",
+        questionId: chosen.id,
+        reference: "I prepare carefully. I review the agenda. Then I get into the zone.",
+        usedExpressionIds: [expressions[0].id],
+      };
     }, { requests }),
   });
 
@@ -395,6 +399,7 @@ test("selects an IELTS candidate by ID and resolves exact stored question data",
     usedQuestionIds: [],
   });
 
+  assert.equal(result.success, true, JSON.stringify(result));
   assert.deepEqual(JSON.parse(JSON.stringify(result.round)), {
     questionId: chosen.id,
     source: "learner_bank",

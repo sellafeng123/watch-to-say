@@ -29,7 +29,6 @@ const QUESTION_BANK_PREVIEW_TTL_MS = 30 * 60 * 1000;
 const QUESTION_BANK_NAME_CHARS = 120;
 const DEFAULT_QUESTION_BANK_NAME = "Learner question bank";
 const SPEAKING_REFERENCE_CHARS = 4_000;
-const SPEAKING_EXPRESSION_LIMIT = 80;
 const BUNDLED_IELTS_BANK_PATH = "data/ielts-question-bank.local.json";
 const BUNDLED_IELTS_REVIEWED_PAGE_COUNT = 46;
 const QUESTION_BANK_PROFILES = new Set(["ielts", "work", "daily", "travel", "general"]);
@@ -1680,7 +1679,7 @@ async function handlePracticeMaterials(request) {
 }
 
 function normalizeSpeakingExpressions(value) {
-  if (!Array.isArray(value) || !value.length || value.length > SPEAKING_EXPRESSION_LIMIT) return [];
+  if (!Array.isArray(value) || !value.length) return [];
   const seen = new Set();
   const expressions = [];
   for (const item of value) {
