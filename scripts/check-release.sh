@@ -248,7 +248,9 @@ for file in "${javascript_files[@]}"; do
 done
 
 if compgen -G "tests/*.test.js" >/dev/null; then
-  node --test tests/*.test.js
+  # Keep --print-files machine-readable for both package commands. Test output
+  # remains visible to callers, but cannot become a spurious archive entry.
+  node --test tests/*.test.js >&2
 fi
 
 if ((${#javascript_files[@]} > 0)); then

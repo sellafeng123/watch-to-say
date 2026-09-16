@@ -15,13 +15,13 @@ YouTube Digest is a bring-your-own-key project installed locally from GitHub. It
 
 ![YouTube Digest demo](YouTube%20Digest%20demo.png)
 
-## New in v2.0.0
+## New in v2.1.0
 
 - Start **本期表达练习** from the top of Transcript and choose any saved highlights from the current video.
-- Move through listening recall, contextual internalization, and speaking output in a fixed learning sequence.
-- Speak first, reveal the reference answer, then self-rate each step as **我会** or **还不会**.
-- Advance only after mastering the preceding stage, with missed tasks collected into one final retry pass.
-- Generate profile-aware practice for IELTS speaking, work, daily conversation, or travel with DeepSeek and the original sentence context.
+- Move through listening recall, contextual internalization, and one whole-set speaking round. Every selected expression must be mastered in internalization before speaking unlocks.
+- Add your own speaking question bank by pasting text in Settings, recognizing it, reviewing the structured preview, and explicitly saving it.
+- For IELTS, use an approved exact local bank when you have prepared one. Work, daily conversation, and travel can use your bank, DeepSeek, or the documented smart fallback.
+- Retry the same speaking question without an API call, or request a different unused question when more practice is needed.
 
 ## New in v1.2.0
 
@@ -55,6 +55,24 @@ This development tool uses macOS PDFKit, Vision, and AppKit. It is not part of t
 3. Regenerate only from the reviewed inputs: `node scripts/parse-ielts-ocr.mjs INPUT.json data/ielts-question-bank.local.json REVIEW.json`. The parser requires all 46 reviewed OCR pages and an approved review artifact before it writes a local bank.
 
 The normal Swift command requires a matched Xcode or Command Line Tools compiler and macOS SDK. This host currently has Swift 6.3.3 with default SDK interfaces built for 6.3.2, so the ordinary command fails until Command Line Tools or Xcode is repaired or updated. Use a normally matched macOS toolchain; do not treat temporary local compile workarounds as the project default.
+
+## Speaking question banks and local IELTS data
+
+In **Settings**, choose one or more speaking profiles, paste plain-text questions, then choose **Recognize question bank**. Recognition sends that paste to DeepSeek only for the request you start. Review the returned structured questions before saving. After a successful save, the original paste is discarded and only the structured question records are kept in Chrome local storage. A failed recognition or a preview you do not save leaves the paste in the Settings textarea so you can correct it.
+
+Each recognition, a new AI-generated speaking question, and a new AI reference answer is a separate DeepSeek request and can incur additional provider charges. Repeating the same speaking question does not call DeepSeek. Check DeepSeek pricing and your account limits before repeated recognition or practice.
+
+Question sources behave as follows:
+
+- IELTS uses exact stored questions from an approved bundled local bank. If no approved local bank is installed, IELTS bundled questions are unavailable rather than replaced with the synthetic sample.
+- Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
+- The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
+
+The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.1.0-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
+
+To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for YouTube Digest at `chrome://extensions` and refresh open YouTube tabs.
+
+The extension has no runtime PDF import, PDF renderer, or OCR engine. The macOS OCR workflow above is one-time development tooling and is never included in either extension runtime.
 
 ## Install with your coding agent
 

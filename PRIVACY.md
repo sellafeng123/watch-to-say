@@ -15,6 +15,8 @@ Depending on the feature you use, YouTube Digest handles:
 - transcript context around a timestamped note;
 - content you ask to translate;
 - notes you save;
+- structured learner question banks and an active speaking-round state;
+- raw question-bank text only while you keep it in the Settings textarea or review a recognition preview;
 - learner entries you prepare for an Obsidian Markdown note, including selected
   expressions, nearby subtitle context, AI contextual glosses, and your edits;
 - Supadata and DeepSeek configuration, including API keys; and
@@ -35,6 +37,8 @@ The published version sends AI feature content to DeepSeek V4 Flash at `https://
 - small semantic transcript batches currently needed for progressive Chinese
   translation, or requested overview or explanation content;
 - nearby transcript context and video metadata when polishing a saved note.
+- raw pasted question-bank text only after you choose **Recognize question bank**; and
+- the current video's selected expressions and a bounded candidate-question list when preparing a speaking round or reference answer.
 
 The endpoint and `deepseek-v4-flash` model are fixed in the published Settings page. You provide one DeepSeek API key. To use another provider or model, you must adapt your own local source copy and its permissions. The Settings page provides a coding-agent prompt for that purpose and warns you never to include an API key in the prompt or chat.
 
@@ -63,6 +67,7 @@ YouTube Digest uses Chrome's local extension storage, not a YouTube Digest cloud
 - Recent transcript, digest, and per-segment translation cache entries are stored
   locally. The cache is limited to 20 videos, and entries older than 30 days are
   removed when the side panel opens.
+- Structured learner question banks remain locally until you delete them. The original pasted text is discarded after you explicitly save a successful structured preview. Active speaking-round state remains only in the current side-panel session.
 
 Chrome extension storage is not a password vault. Anyone with sufficient access to your browser profile or device may be able to recover locally stored keys or content. Use scoped keys where providers support them, set spending limits, and rotate or revoke a key if the device or browser profile is compromised.
 
@@ -74,6 +79,10 @@ To remove data:
 - revoke keys in the Supadata or DeepSeek dashboard to stop their future use.
 
 Clearing local data does not delete information already processed or retained by Supadata or DeepSeek. Use each service's controls for service-side requests.
+
+## Local IELTS publishing boundary
+
+The extension has no runtime scanned-PDF import, PDF renderer, or OCR engine. Any macOS PDF/OCR conversion is development-time tooling, not an extension feature. An OCR-derived IELTS bank may be kept in the Git-ignored local file `data/ielts-question-bank.local.json` for a personal installation after review. The public package excludes it because the source material can contain third-party content. The local package command validates the approval record, uses the public allowlist plus only that bank, scans package inputs for common credentials, and prints a SHA-256 digest. Do not publish or share a local bank unless you have redistribution permission.
 
 ## Permissions
 

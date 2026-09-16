@@ -25,6 +25,7 @@ There is no guaranteed response time or bug-bounty program. Please allow a reaso
 Examples include:
 
 - API keys or private content included in source, logs, screenshots, or release ZIPs;
+- an OCR-derived local IELTS bank entering a public release or being shared without permission;
 - requests to network origins outside the documented YouTube, Supadata, and DeepSeek hosts;
 - script or HTML injection through transcript, metadata, service errors, or model output;
 - access to browsing data outside the documented YouTube scope;
@@ -43,4 +44,6 @@ Examples include:
 - Revoke keys immediately if a device, browser profile, ZIP, log, or screenshot exposes them.
 - Remember that Chrome local extension storage is not an encrypted password vault.
 
-The release tooling uses an explicit file allowlist and scans public files for common credential patterns, but automated checks cannot detect every secret.
+The release tooling uses an explicit file allowlist and scans public files for common credential patterns, but automated checks cannot detect every secret. `npm run package` never includes `data/ielts-question-bank.local.json`. `npm run package:local` first validates that Git-ignored bank and then packages only it in addition to the public allowlist, scanning those archive inputs and printing a SHA-256 digest. Inspect the file list and checksum before sharing either archive.
+
+The extension has no runtime PDF import, PDF renderer, or OCR engine. Treat the macOS OCR conversion tooling and all PDF/OCR/review artifacts as local development material. Do not commit source PDFs, OCR output, review records, or an OCR-derived bank unless you have confirmed the necessary rights and intentionally changed the publishing boundary.

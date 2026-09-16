@@ -1,8 +1,12 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+
+const questionBank = require("../question-bank.js");
 
 const root = path.resolve(__dirname, "..");
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
@@ -18,7 +22,7 @@ test("manifest uses minimized install-time permissions", () => {
   assert.ok(!manifest.permissions.includes("activeTab"));
   assert.ok(manifest.host_permissions.includes("https://api.deepseek.com/*"));
   assert.equal(Object.hasOwn(manifest, "optional_host_permissions"), false);
-  assert.equal(manifest.version, "2.0.0");
+  assert.equal(manifest.version, "2.1.0");
 });
 
 test("release allowlist includes every declared Corpus Palace runtime module", () => {
@@ -49,9 +53,147 @@ test("public release file list excludes every local IELTS artifact and developme
   assert.ok(files.includes("practice-flow.js"));
   assert.ok(files.includes("prompts/question-bank-import.md"));
   assert.ok(files.includes("prompts/speaking-round.md"));
+  assert.ok(!files.includes("data/ielts-question-bank.local.json"));
   assert.ok(files.every((file) => !/^data\/ielts-(?:question-bank|ocr-review).*\.json$/.test(file)));
   assert.ok(files.every((file) => !/^tmp\/ielts-ocr-.*\.json$/.test(file)));
   assert.ok(files.every((file) => !/^scripts\//.test(file)));
+  assert.ok(files.every((file) => fs.existsSync(path.join(root, file))));
+});
+
+test("synthetic IELTS sample survives shared question-bank validation without loss", () => {
+  const sample = JSON.parse(read("data/ielts-question-bank.sample.json"));
+  const normalized = questionBank.normalizeBank(sample);
+
+  assert.equal(normalized.id, "ielts-local");
+  assert.equal(normalized.source, "bundled_ielts");
+  assert.deepEqual(normalized.profiles, ["ielts"]);
+  assert.equal(normalized.questions.length, sample.questions.length);
+  assert.ok(normalized.questions.every((question) => question.source === "bundled_ielts"));
+  assert.ok(normalized.questions.some((question) => question.part === "part1"));
+  assert.ok(normalized.questions.some((question) => question.part === "part2"));
+  assert.ok(normalized.questions.some((question) => question.part === "part3"));
+});
+
+test("guarded local packaging rejects malformed data and adds exactly one private bank", () => {
+  if (process.env.YTD_LOCAL_PACKAGE_PROBE_CHILD === "1") return;
+
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), "youtube-digest-local-package-"));
+  const fixtureScripts = path.join(fixtureRoot, "scripts");
+  const fixtureData = path.join(fixtureRoot, "data");
+  const fixtureBin = path.join(fixtureRoot, "bin");
+  const logPath = path.join(fixtureRoot, "commands.log");
+
+  fs.mkdirSync(fixtureScripts, { recursive: true });
+  fs.mkdirSync(fixtureData, { recursive: true });
+  fs.mkdirSync(fixtureBin, { recursive: true });
+  fs.copyFileSync(
+    path.join(root, "scripts/package-local-extension.sh"),
+    path.join(fixtureScripts, "package-local-extension.sh"),
+  );
+  fs.copyFileSync(path.join(root, "question-bank.js"), path.join(fixtureRoot, "question-bank.js"));
+  fs.writeFileSync(path.join(fixtureRoot, "manifest.json"), JSON.stringify({ version: "2.1.0" }));
+  fs.writeFileSync(path.join(fixtureRoot, "README.md"), "Synthetic public release fixture.\n");
+  fs.writeFileSync(path.join(fixtureBin, "npm"), `#!/usr/bin/env bash
+set -euo pipefail
+printf 'npm %s\\n' "$*" >> "$YTD_TEST_COMMAND_LOG"
+[[ "$*" == "test" ]]
+`);
+  fs.writeFileSync(path.join(fixtureScripts, "check-release.sh"), `#!/usr/bin/env bash
+set -euo pipefail
+printf 'check %s\\n' "\${1:-}" >> "$YTD_TEST_COMMAND_LOG"
+if [[ "\${1:-}" == "--print-files" ]]; then
+  printf '%s\\n' manifest.json question-bank.js README.md
+fi
+`);
+  fs.chmodSync(path.join(fixtureBin, "npm"), 0o755);
+  fs.chmodSync(path.join(fixtureScripts, "check-release.sh"), 0o755);
+  fs.chmodSync(path.join(fixtureScripts, "package-local-extension.sh"), 0o755);
+
+  const runPackage = () => spawnSync(
+    "bash",
+    [path.join(fixtureScripts, "package-local-extension.sh")],
+    {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        PATH: `${fixtureBin}${path.delimiter}${process.env.PATH}`,
+        YTD_TEST_COMMAND_LOG: logPath,
+      },
+    },
+  );
+
+  try {
+    fs.writeFileSync(
+      path.join(fixtureData, "ielts-question-bank.local.json"),
+      JSON.stringify({
+        id: "broken-local-bank",
+        name: "Broken local bank",
+        source: "bundled_ielts",
+        profiles: ["ielts"],
+        questions: [{ part: "part1", question: "", cuePoints: [] }],
+      }),
+    );
+    const malformed = runPackage();
+    assert.notEqual(malformed.status, 0, malformed.stdout);
+    assert.match(malformed.stderr, /local question bank validation failed/i);
+    assert.equal(
+      fs.existsSync(path.join(fixtureRoot, "dist/youtube-digest-v2.1.0-local-with-question-bank.zip")),
+      false,
+    );
+
+    const sample = JSON.parse(read("data/ielts-question-bank.sample.json"));
+    const normalized = questionBank.normalizeBank(sample);
+    const digest = crypto.createHash("sha256").update(JSON.stringify(normalized)).digest("hex");
+    const approvedSample = {
+      ...sample,
+      approval: {
+        status: "approved",
+        schemaVersion: 1,
+        pageCount: 46,
+        reviewedPageCount: 46,
+        correctionsApplied: 0,
+        sourcePdfSha256: "1".repeat(64),
+        ocrSha256: "2".repeat(64),
+        bankSha256: digest,
+        reviewedAt: "2026-09-15T00:00:00.000Z",
+      },
+    };
+    fs.writeFileSync(
+      path.join(fixtureData, "ielts-question-bank.local.json"),
+      `${JSON.stringify(approvedSample, null, 2)}\n`,
+    );
+
+    const packaged = runPackage();
+    assert.equal(packaged.status, 0, packaged.stderr);
+    assert.match(packaged.stdout, /youtube-digest-v2\.1\.0-local-with-question-bank\.zip/);
+    assert.match(packaged.stdout, /SHA-256: [a-f0-9]{64}/);
+    assert.deepEqual(
+      fs.readFileSync(logPath, "utf8").trim().split("\n").slice(-3),
+      ["npm test", "check ", "check --print-files"],
+    );
+
+    const archivePath = path.join(
+      fixtureRoot,
+      "dist/youtube-digest-v2.1.0-local-with-question-bank.zip",
+    );
+    const archiveList = spawnSync("unzip", ["-Z1", archivePath], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    });
+    assert.equal(archiveList.status, 0, archiveList.stderr);
+    assert.deepEqual(
+      archiveList.stdout.trim().split("\n").sort(),
+      [
+        "README.md",
+        "data/ielts-question-bank.local.json",
+        "manifest.json",
+        "question-bank.js",
+      ],
+    );
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
 });
 
 test("private IELTS review artifacts are ignored alongside OCR and generated banks", () => {
