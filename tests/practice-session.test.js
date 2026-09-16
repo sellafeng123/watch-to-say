@@ -32,6 +32,26 @@ test("uses the timestamp-resolved target caption when a selected expression repe
   }), "At night, I get into the zone more easily.");
 });
 
+for (const targetText of [
+  "At night I focus on my work. Then I rest.",
+  "coffee. At night I focus",
+  "focus on my work. Then I",
+]) {
+  test(`resolves a cross-sentence target caption to one complete sentence: ${targetText}`, () => {
+    assert.equal(practice.extractAnswerSentence({
+      context: "I focus after coffee. At night I focus on my work. Then I rest.",
+      selectedText: "focus", expression: "focus", targetText,
+    }), "At night I focus on my work.");
+  });
+}
+
+test("preserves a complete punctuated target sentence longer than the unpunctuated fallback limit", () => {
+  const sentence = `At night I focus on ${"the detailed project and ".repeat(18)}finish my work.`;
+  assert.equal(practice.extractAnswerSentence({
+    context: `Before this. ${sentence} Then I rest.`, selectedText: "focus", expression: "focus", targetText: sentence,
+  }), sentence);
+});
+
 test("extracts a matching final sentence after mixed English and Chinese terminators", () => {
   assert.equal(practice.extractAnswerSentence({
     context: "Wait! Are you ready? 前面没有目标。最后我进入状态。",

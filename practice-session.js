@@ -1,4 +1,4 @@
-const YTD_PRACTICE = (() => {
+var YTD_PRACTICE = (() => {
   const STAGES = ["listening", "internalization"];
   const RATINGS = new Set(["mastered", "review"]);
   const SPEAKING_OUTCOMES = new Set(["needs_practice", "finished"]);
@@ -125,18 +125,52 @@ const YTD_PRACTICE = (() => {
       : boundedTargetWindow(context, selectedText, expression);
   }
 
+  function hasSentenceTerminator(sentence) {
+    return /[.!?。！？]+["'”’）】》]*$/.test(sentence);
+  }
+
+  function sharedTokenRunLength(left, right) {
+    const leftTokens = expressionTokens(left, 4000).map(normalizeExpressionToken);
+    const rightTokens = expressionTokens(right, 4000).map(normalizeExpressionToken);
+    let longest = 0;
+    let previous = new Array(rightTokens.length + 1).fill(0);
+    for (const leftToken of leftTokens) {
+      const current = new Array(rightTokens.length + 1).fill(0);
+      rightTokens.forEach((rightToken, index) => {
+        if (leftToken !== rightToken) return;
+        current[index + 1] = previous[index] + 1;
+        longest = Math.max(longest, current[index + 1]);
+      });
+      previous = current;
+    }
+    return longest;
+  }
+
+  function targetSentenceScore(sentence, target) {
+    const normalizedSentence = sentence.toLocaleLowerCase();
+    const normalizedTarget = target.toLocaleLowerCase();
+    if (normalizedSentence.includes(normalizedTarget)) return normalizedTarget.length;
+    if (normalizedTarget.includes(normalizedSentence)) return normalizedSentence.length;
+    return sharedTokenRunLength(sentence, target);
+  }
+
   function extractAnswerSentence({ context, selectedText, expression, targetText } = {}) {
     const sentences = splitSentences(context);
     const target = cleanText(targetText, 4000);
     if (target) {
-      if (target.length > 320) {
-        return targetExpressionSpan(target, selectedText, expression)
-          ? boundedTargetWindow(target, selectedText, expression)
-          : boundedTargetWindow(context, selectedText, expression);
+      const candidates = sentences.filter((sentence) =>
+        referenceUsesExpression(sentence, { selectedText, expression }),
+      );
+      const bestMatch = candidates
+        .map((sentence) => ({ sentence, score: targetSentenceScore(sentence, target) }))
+        .sort((left, right) => right.score - left.score)[0];
+      if (bestMatch?.score && hasSentenceTerminator(bestMatch.sentence)) {
+        return bestMatch.sentence;
       }
-      const anchored = sentences.find((sentence) => sentence.toLocaleLowerCase().includes(target.toLocaleLowerCase()));
-      if (anchored && /[.!?。！？]/.test(anchored)) return anchored;
-      return target;
+      if (target.length <= 320) return target;
+      return targetExpressionSpan(target, selectedText, expression)
+        ? boundedTargetWindow(target, selectedText, expression)
+        : boundedTargetWindow(context, selectedText, expression);
     }
     const selected = cleanText(selectedText, 300).toLocaleLowerCase();
     if (selected) {

@@ -1,4 +1,4 @@
-const YTD_QUESTION_BANK_UI = (() => {
+var YTD_QUESTION_BANK_UI = (() => {
   const PROFILES = ["ielts", "work", "daily", "travel", "general"];
 
   function el(documentRef, tagName, className, text) {
@@ -21,6 +21,17 @@ const YTD_QUESTION_BANK_UI = (() => {
   function readDraft(form, fallback, copy = {}) {
     return {
       name: form.querySelector("#questionBankName")?.value.trim() || copy.defaultBankName || "Learner question bank",
+      profiles: PROFILES.filter((profile) =>
+        form.querySelector(`[data-profile="${profile}"]`)?.checked,
+      ),
+      sourceText: form.querySelector("#questionBankSourceText")?.value || "",
+      replaceBankId: fallback?.replaceBankId || null,
+    };
+  }
+
+  function readLiveDraft(form, fallback) {
+    return {
+      name: form.querySelector("#questionBankName")?.value || "",
       profiles: PROFILES.filter((profile) =>
         form.querySelector(`[data-profile="${profile}"]`)?.checked,
       ),
@@ -170,6 +181,15 @@ const YTD_QUESTION_BANK_UI = (() => {
     source.disabled = !!state.loading;
     sourceLabel.append(source);
     form.append(sourceLabel);
+    const updateDraft = () => callbacks.onDraftChange?.(readLiveDraft(form, draft));
+    name.addEventListener("input", updateDraft);
+    name.addEventListener("change", updateDraft);
+    source.addEventListener("input", updateDraft);
+    source.addEventListener("change", updateDraft);
+    for (const profile of profiles.querySelectorAll("input")) {
+      profile.addEventListener("input", updateDraft);
+      profile.addEventListener("change", updateDraft);
+    }
     const status = el(documentRef, "p", "question-bank-status", state.status || "");
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
@@ -194,7 +214,7 @@ const YTD_QUESTION_BANK_UI = (() => {
     return manager;
   }
 
-  return { PROFILES, mountManager, readDraft };
+  return { PROFILES, mountManager, readDraft, readLiveDraft };
 })();
 
 if (typeof module !== "undefined" && module.exports) module.exports = YTD_QUESTION_BANK_UI;

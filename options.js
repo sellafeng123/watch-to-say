@@ -587,6 +587,9 @@ const YTD_OPTIONS = (() => {
       copy: { deleteConfirm: "" },
     });
     const questionBankCallbacks = {
+      onDraftChange(draft) {
+        if (!questionBankState.loading) questionBankState.draft = draft;
+      },
       async onRecognize(draft) {
         const operation = beginQuestionBankOperation("questionBankRecognizing");
         if (operation === null) return;
