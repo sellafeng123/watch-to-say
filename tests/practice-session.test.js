@@ -245,6 +245,60 @@ test("retries the same speaking round in place without another question ID", () 
   assert.equal(session.speakingRounds[0].attemptCount, 1);
 });
 
+test("freezes an active speaking round while internalization readiness is revoked", () => {
+  const items = practice.mergePracticeHighlights([
+    highlight(),
+    highlight({ expression: "keep a notebook", timestampSeconds: 44, selectedText: "keep a notebook" }),
+  ]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: items });
+  items.forEach((item) => {
+    session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+    session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  });
+  session = practice.addSpeakingRound(session, speakingRound());
+  const roundId = session.speakingRounds[0].id;
+  const revoked = practice.rateStage(session, {
+    itemId: items[0].id,
+    stage: "internalization",
+    rating: "review",
+  });
+  const beforeRejectedTransitions = structuredClone(revoked);
+
+  assert.equal(practice.isReadyForSpeaking(revoked), false);
+  assert.equal(practice.retrySameSpeakingRound(revoked, { roundId }), null);
+  assert.equal(practice.finishSpeakingRound(revoked, { roundId, outcome: "finished" }), null);
+  assert.equal(practice.addSpeakingRound(revoked, speakingRound({ questionId: "question-2" })), null);
+  assert.deepEqual(revoked, beforeRejectedTransitions);
+
+  const remastered = practice.rateStage(revoked, {
+    itemId: items[0].id,
+    stage: "internalization",
+    rating: "mastered",
+  });
+  const resumed = practice.retrySameSpeakingRound(remastered, { roundId });
+  assert.equal(resumed.speakingRounds[0].attemptCount, 2);
+  assert.equal(resumed.speakingRounds[0].outcome, null);
+});
+
+test("rejects finished and non-current speaking round IDs for retry and finish", () => {
+  const [item] = practice.mergePracticeHighlights([highlight()]);
+  let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });
+  session = practice.rateStage(session, { itemId: item.id, stage: "listening", rating: "mastered" });
+  session = practice.rateStage(session, { itemId: item.id, stage: "internalization", rating: "mastered" });
+  session = practice.addSpeakingRound(session, speakingRound());
+  const firstRoundId = session.speakingRounds[0].id;
+  session = practice.finishSpeakingRound(session, { roundId: firstRoundId, outcome: "needs_practice" });
+  session = practice.addSpeakingRound(session, speakingRound({ questionId: "question-2" }));
+  const secondRoundId = session.speakingRounds[1].id;
+
+  assert.equal(practice.retrySameSpeakingRound(session, { roundId: firstRoundId }), null);
+  assert.equal(practice.finishSpeakingRound(session, { roundId: firstRoundId, outcome: "finished" }), null);
+
+  session = practice.finishSpeakingRound(session, { roundId: secondRoundId, outcome: "finished" });
+  assert.equal(practice.retrySameSpeakingRound(session, { roundId: secondRoundId }), null);
+  assert.equal(practice.finishSpeakingRound(session, { roundId: secondRoundId, outcome: "needs_practice" }), null);
+});
+
 test("changes question only after recording needs_practice and rejects duplicate or empty rounds", () => {
   const [item] = practice.mergePracticeHighlights([highlight()]);
   let session = practice.createSession({ video: { id: "video-123", title: "A study video" }, highlights: [item] });

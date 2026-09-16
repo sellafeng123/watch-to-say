@@ -354,7 +354,7 @@ const YTD_PRACTICE = (() => {
 
   function retrySameSpeakingRound(session, { roundId } = {}) {
     const current = currentUnfinishedRound(session);
-    if (!current || current.id !== roundId) return null;
+    if (!isReadyForSpeaking(session) || !current || current.id !== roundId) return null;
     return {
       ...session,
       speakingRounds: session.speakingRounds.map((round) => round.id === roundId
@@ -366,7 +366,7 @@ const YTD_PRACTICE = (() => {
 
   function finishSpeakingRound(session, { roundId, outcome } = {}) {
     const current = currentUnfinishedRound(session);
-    if (!current || current.id !== roundId || !SPEAKING_OUTCOMES.has(outcome)) return null;
+    if (!isReadyForSpeaking(session) || !current || current.id !== roundId || !SPEAKING_OUTCOMES.has(outcome)) return null;
     return {
       ...session,
       speakingRounds: session.speakingRounds.map((round) => round.id === roundId
