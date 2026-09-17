@@ -415,7 +415,100 @@ test("repairs one invalid AI practice-material response before reporting failure
   assert.equal(result.success, true);
   assert.deepEqual(JSON.parse(JSON.stringify(result.materials)), valid);
   assert.equal(requests.length, 2);
-  assert.match(requests[1].messages.at(-1).content, /cannot be accepted/i);
+  assert.match(requests[1].messages.at(-1).content, /day-to-day lives：缺少这条表达的练习材料/);
+});
+
+test("keeps valid practice items and repairs only the failed expressions with concrete reasons", async () => {
+  const requests = [];
+  const popIn = {
+    id: "practice-1mpbx51",
+    internalization: {
+      promptZh: "换场景说两句。",
+      references: [
+        "I pop in at the bakery before work.",
+        "My neighbor may pop in after dinner.",
+        "We can pop in to see the new office tomorrow.",
+      ],
+    },
+  };
+  const invalidDebrief = {
+    id: "practice-ytv7k2",
+    internalization: {
+      promptZh: "换场景说两句。",
+      references: [
+        "After team meetings, I do a little debriefing with my manager.",
+        "At home, I do a quick debrief in my journal.",
+        "Before bed, I do a little debriefing about the day.",
+      ],
+    },
+  };
+  const repairedDebrief = {
+    ...invalidDebrief,
+    internalization: {
+      ...invalidDebrief.internalization,
+      references: [
+        "After team meetings, I do a little debriefing with my manager.",
+        "At home, I do a little debriefing in my journal.",
+        "Before bed, I do a little debriefing about the day.",
+      ],
+    },
+  };
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: practicePromptFetch([
+      { label: "AI 练习材料", items: [popIn, invalidDebrief] },
+      { label: "AI 练习材料", items: [repairedDebrief] },
+    ], requests),
+  });
+
+  const result = await helpers.handlePracticeMaterials({
+    profile: "daily",
+    videoTitle: "Homebody in New York",
+    highlights: [
+      entry({ expression: "pop in", partOfSpeech: "phrasal verb" }),
+      entry({ expression: "do a little debriefing", partOfSpeech: "verb phrase", timestampSeconds: 37 }),
+    ],
+  });
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(result.materials.items)),
+    [popIn, repairedDebrief],
+  );
+  assert.equal(requests.length, 2);
+  const repairPrompt = requests[1].messages.map((message) => message.content).join("\n");
+  assert.match(repairPrompt, /do a little debriefing/);
+  assert.match(repairPrompt, /第 2 个例句没有保留目标表达/);
+  assert.doesNotMatch(repairPrompt, /"expression":"pop in"/);
+});
+
+test("reports the expression and validation reason when targeted practice repair still fails", async () => {
+  const invalid = {
+    label: "AI 练习材料",
+    items: [{
+      id: "practice-ytv7k2",
+      internalization: {
+        promptZh: "换场景说两句。",
+        references: [
+          "After team meetings, I do a little debriefing with my manager.",
+          "At home, I do a quick debrief in my journal.",
+          "Before bed, I do a little debriefing about the day.",
+        ],
+      },
+    }],
+  };
+  const { helpers } = loadPracticeHelpers({}, {
+    fetch: practicePromptFetch([invalid, invalid]),
+  });
+
+  const result = await helpers.handlePracticeMaterials({
+    profile: "daily",
+    highlights: [entry({ expression: "do a little debriefing", partOfSpeech: "verb phrase" })],
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(result.error, "INVALID_AI_RESPONSE");
+  assert.match(result.message, /do a little debriefing/);
+  assert.match(result.message, /第 2 个例句没有保留目标表达/);
 });
 
 test("sends every expression beyond eighty while bounding IELTS candidates and resolving stored data", async () => {

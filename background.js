@@ -1522,15 +1522,8 @@ function practiceMaterialText(value, limit = 1000) {
   return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, limit) : "";
 }
 
-function validatePracticeMaterials(rawResponse, selectedIds) {
-  let parsed;
-  try {
-    parsed = typeof rawResponse === "string" ? parseLooseJson(rawResponse) : rawResponse;
-  } catch (_error) {
-    return null;
-  }
-  if (!parsed || parsed.label !== "AI 练习材料" || !Array.isArray(selectedIds)) return null;
-  const selectedItems = new Map(selectedIds
+function inspectPracticeMaterials(rawResponse, selectedIds) {
+  const selectedItems = new Map((Array.isArray(selectedIds) ? selectedIds : [])
     .map((item) => ({
       id: practiceMaterialText(item?.id, 120),
       expression: practiceMaterialText(item?.expression, 240),
@@ -1538,36 +1531,94 @@ function validatePracticeMaterials(rawResponse, selectedIds) {
     }))
     .filter((item) => item.id && item.expression && item.selectedText)
     .map((item) => [item.id, item]));
-  const allowedIds = new Set(selectedItems.keys());
-  const items = (Array.isArray(parsed.items) ? parsed.items : []).slice(0, 80)
-    .map((item) => {
-      const id = practiceMaterialText(item?.id, 120);
-      const rawReferences = item?.internalization?.references;
-      if (!Array.isArray(rawReferences) || rawReferences.length !== 3) return null;
-      const internalization = {
-        promptZh: practiceMaterialText(item?.internalization?.promptZh, 600),
-        references: rawReferences.map((reference) => practiceMaterialText(reference, 320)),
-      };
-      const distinctReferences = new Set(internalization.references.map((reference) => reference.toLocaleLowerCase()));
-      const selectedItem = selectedItems.get(id);
-      if (
-        !allowedIds.has(id)
-        || !internalization.promptZh
-        || rawReferences.some((reference) => typeof reference !== "string" || reference.replace(/\s+/g, " ").trim().length > 320)
-        || internalization.references.some((reference) => !reference)
-        || distinctReferences.size !== 3
-        || internalization.references.some((reference) => !YTD_PRACTICE.referenceUsesExpression(reference, selectedItem))
-        || !YTD_PRACTICE.referencesHaveDistinctContexts(internalization.references, selectedItem)
-      ) return null;
-      return { id, internalization };
-    })
-    .filter(Boolean);
-  const returnedIds = new Set(items.map((item) => item.id));
-  if (items.length !== allowedIds.size || returnedIds.size !== allowedIds.size) return null;
+  const failEveryItem = (reason) => ({
+    items: [],
+    failures: [...selectedItems.values()].map((item) => ({
+      id: item.id,
+      expression: item.expression,
+      reason,
+    })),
+  });
+
+  let parsed;
+  try {
+    parsed = typeof rawResponse === "string" ? parseLooseJson(rawResponse) : rawResponse;
+  } catch (_error) {
+    return failEveryItem("返回内容不是有效 JSON");
+  }
+  if (!selectedItems.size) return { items: [], failures: [] };
+  if (!parsed || parsed.label !== "AI 练习材料") {
+    return failEveryItem("材料标签不正确");
+  }
+
+  const rawItems = Array.isArray(parsed.items) ? parsed.items.slice(0, 80) : [];
+  const items = [];
+  const failures = [];
+  selectedItems.forEach((selectedItem, id) => {
+    const matches = rawItems.filter((item) => practiceMaterialText(item?.id, 120) === id);
+    if (matches.length !== 1) {
+      failures.push({
+        id,
+        expression: selectedItem.expression,
+        reason: matches.length ? "返回了重复条目" : "缺少这条表达的练习材料",
+      });
+      return;
+    }
+
+    const rawItem = matches[0];
+    const promptZh = practiceMaterialText(rawItem?.internalization?.promptZh, 600);
+    const rawReferences = rawItem?.internalization?.references;
+    let reason = "";
+    if (!promptZh) reason = "缺少内化练习说明";
+    else if (!Array.isArray(rawReferences) || rawReferences.length !== 3) reason = "必须提供正好 3 个参考例句";
+
+    const references = Array.isArray(rawReferences)
+      ? rawReferences.map((reference) => practiceMaterialText(reference, 320))
+      : [];
+    if (!reason) {
+      const malformedIndex = rawReferences.findIndex((reference) =>
+        typeof reference !== "string"
+        || !reference.replace(/\s+/g, " ").trim()
+        || reference.replace(/\s+/g, " ").trim().length > 320,
+      );
+      if (malformedIndex >= 0) reason = `第 ${malformedIndex + 1} 个例句为空或过长`;
+    }
+    if (!reason) {
+      const missingExpressionIndex = references.findIndex((reference) =>
+        !YTD_PRACTICE.referenceUsesExpression(reference, selectedItem),
+      );
+      if (missingExpressionIndex >= 0) reason = `第 ${missingExpressionIndex + 1} 个例句没有保留目标表达`;
+    }
+    if (!reason && new Set(references.map((reference) => reference.toLocaleLowerCase())).size !== 3) {
+      reason = "3 个例句中存在重复内容";
+    }
+    if (!reason && !YTD_PRACTICE.referencesHaveDistinctContexts(references, selectedItem)) {
+      reason = "3 个例句的场景过于相似";
+    }
+
+    if (reason) failures.push({ id, expression: selectedItem.expression, reason });
+    else items.push({ id, internalization: { promptZh, references } });
+  });
+
+  return { items, failures };
+}
+
+function validatePracticeMaterials(rawResponse, selectedIds) {
+  const inspected = inspectPracticeMaterials(rawResponse, selectedIds);
+  if (inspected.failures.length) return null;
   return {
     label: "AI 练习材料",
-    items,
+    items: inspected.items,
   };
+}
+
+function formatPracticeMaterialFailures(failures) {
+  const details = (Array.isArray(failures) ? failures : [])
+    .slice(0, 4)
+    .map((failure) => `${failure.expression}：${failure.reason}`);
+  return details.length
+    ? `以下表达的练习材料仍不完整：${details.join("；")}`
+    : "练习材料不完整，请重试。";
 }
 
 async function handlePracticeMaterials(request) {
@@ -1601,25 +1652,53 @@ async function handlePracticeMaterials(request) {
       responseFormat: { type: "json_object" },
     };
     const { text } = await requestAiCompletion({ ...completionOptions, messages });
-    let materials = validatePracticeMaterials(text, highlights);
-    if (!materials) {
+    const initialInspection = inspectPracticeMaterials(text, highlights);
+    let items = initialInspection.items;
+    let failures = initialInspection.failures;
+    if (failures.length) {
+      const failedIds = new Set(failures.map((failure) => failure.id));
+      const failedHighlights = highlights.filter((highlight) => failedIds.has(highlight.id));
+      const repairExpressions = failedHighlights.map((item) => ({
+        id: item.id,
+        expression: item.expression,
+        kind: item.kind,
+        partOfSpeech: item.partOfSpeech,
+        usageContexts: item.usageContexts,
+        originalExamples: item.anchors.slice(0, 3).map((anchor) => anchor.context || anchor.selectedText),
+      }));
+      const repairVariables = {
+        profile: YTD_PRACTICE.PROFILES[profile],
+        videoTitle: practiceMaterialText(request?.videoTitle, 500) || "Unknown",
+        expressionsJson: JSON.stringify(repairExpressions),
+      };
+      const repairSystemPrompt = await loadPromptSection("expression-practice.md", "System prompt", repairVariables);
+      const repairUserPrompt = await loadPromptSection("expression-practice.md", "User prompt", repairVariables);
+      const failureDetails = failures
+        .map((failure) => `${failure.expression}：${failure.reason}`)
+        .join("\n");
       const repair = await requestAiCompletion({
         ...completionOptions,
         temperature: 0.1,
         messages: [
-          ...messages,
-          { role: "assistant", content: practiceMaterialText(text, 12000) },
+          { role: "system", content: repairSystemPrompt },
           {
             role: "user",
-            content: "The preceding JSON cannot be accepted because it is incomplete or does not preserve every target expression in three distinct examples. Return one complete corrected JSON object only, following the original contract exactly.",
+            content: `${repairUserPrompt}\n\nOnly repair the expressions listed above. The previous attempt failed for these exact reasons:\n${failureDetails}\nReturn one complete corrected JSON object containing every listed failed ID and no other IDs.`,
           },
         ],
       });
-      materials = validatePracticeMaterials(repair.text, highlights);
+      const repairInspection = inspectPracticeMaterials(repair.text, failedHighlights);
+      items = [...items, ...repairInspection.items];
+      failures = repairInspection.failures;
     }
-    if (!materials || materials.items.length !== highlights.length) {
-      return { success: false, error: "INVALID_AI_RESPONSE", message: "练习材料不完整，请重试。" };
+    if (failures.length || items.length !== highlights.length) {
+      return { success: false, error: "INVALID_AI_RESPONSE", message: formatPracticeMaterialFailures(failures) };
     }
+    const itemById = new Map(items.map((item) => [item.id, item]));
+    const materials = {
+      label: "AI 练习材料",
+      items: highlights.map((highlight) => itemById.get(highlight.id)),
+    };
     return { success: true, materials };
   } catch (error) {
     return { success: false, error: error.code || error.message || "PRACTICE_MATERIALS_FAILED", message: "暂时无法生成练习材料，请重试。" };
