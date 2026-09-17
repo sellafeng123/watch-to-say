@@ -1470,7 +1470,7 @@ body.practice-modal-open {
 .welcome-icon {
   width: 84px;
   height: 84px;
-  background: url("icons/corpus-palace-logo.svg") center / contain no-repeat;
+  background: url("icons/corpus-palace-logo.png") center / contain no-repeat;
 }
 
 .welcome-icon::after {

@@ -15,6 +15,10 @@ YouTube Digest to Corpus Palace is a bring-your-own-key project installed locall
 
 ![YouTube Digest to Corpus Palace demo](YouTube%20Digest%20demo.png)
 
+## New in v2.4.1
+
+- Chrome, the side-panel empty state, and release packages now use the supplied Corpus Palace PNG as their single shared logo source.
+
 ## New in v2.4.0
 
 - A new Corpus Palace notebook logo carries the lavender-and-mint visual identity across Chrome and the extension's empty state.
@@ -97,7 +101,7 @@ Question sources behave as follows:
 - Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
 - The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
 
-The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.4.0-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
+The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.4.1-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
 
 To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for YouTube Digest to Corpus Palace at `chrome://extensions` and refresh open YouTube tabs.
 

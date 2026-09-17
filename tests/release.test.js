@@ -22,7 +22,7 @@ test("manifest uses minimized install-time permissions", () => {
   assert.ok(!manifest.permissions.includes("activeTab"));
   assert.ok(manifest.host_permissions.includes("https://api.deepseek.com/*"));
   assert.equal(Object.hasOwn(manifest, "optional_host_permissions"), false);
-  assert.equal(manifest.version, "2.4.0");
+  assert.equal(manifest.version, "2.4.1");
 });
 
 test("release allowlist includes every declared Corpus Palace runtime module", () => {
@@ -37,6 +37,16 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
   assert.ok(releaseCheck.includes('"practice-flow.js"'));
   assert.ok(releaseCheck.includes('"prompts/question-bank-import.md"'));
   assert.ok(releaseCheck.includes('"prompts/speaking-round.md"'));
+});
+
+test("the supplied Corpus Palace PNG is the single shared logo source", () => {
+  const css = read("sidepanel.css");
+  const releaseCheck = read("scripts/check-release.sh");
+
+  assert.match(css, /url\("icons\/corpus-palace-logo\.png"\)/);
+  assert.ok(fs.existsSync(path.join(root, "icons/corpus-palace-logo.png")));
+  assert.ok(releaseCheck.includes('"icons/corpus-palace-logo.png"'));
+  assert.equal(fs.existsSync(path.join(root, "icons/corpus-palace-logo.svg")), false);
 });
 
 test("public release file list excludes every local IELTS artifact and development script", () => {
