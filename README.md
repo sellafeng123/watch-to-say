@@ -15,6 +15,11 @@ YouTube Digest is a bring-your-own-key project installed locally from GitHub. It
 
 ![YouTube Digest demo](YouTube%20Digest%20demo.png)
 
+## New in v2.3.0
+
+- Reopen a contextual gloss for the same selected text at the same caption occurrence from local Chrome storage without another DeepSeek request.
+- Use **重新生成** on the gloss card only when you intentionally want a fresh AI result. The same expression in another caption keeps its own contextual meaning.
+
 ## New in v2.2.1
 
 - Fixed speaking-reference coverage badges showing `0/N` after verified coverage entered the learning session.
@@ -73,7 +78,7 @@ Question sources behave as follows:
 - Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
 - The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
 
-The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.2.1-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
+The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.3.0-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
 
 To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for YouTube Digest at `chrome://extensions` and refresh open YouTube tabs.
 

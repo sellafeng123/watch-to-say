@@ -114,7 +114,7 @@ const YTD_CORPUS_UI = (() => {
     return card;
   }
 
-  function mountGlossCard({ root, gloss, selection, onSave }) {
+  function mountGlossCard({ root, gloss, selection, onSave, onRegenerate }) {
     if (!root || !gloss || !selection) return null;
     const documentRef = root.ownerDocument || document;
     root.replaceChildren();
@@ -136,6 +136,12 @@ const YTD_CORPUS_UI = (() => {
     editButton.type = "button";
     editButton.addEventListener("click", () => mountEditor({ root, gloss, selection, onSave }));
     card.append(editButton);
+    if (typeof onRegenerate === "function") {
+      const regenerateButton = el(documentRef, "button", "corpus-regenerate-button", "重新生成");
+      regenerateButton.type = "button";
+      regenerateButton.addEventListener("click", onRegenerate);
+      card.append(regenerateButton);
+    }
     root.append(card);
     return card;
   }

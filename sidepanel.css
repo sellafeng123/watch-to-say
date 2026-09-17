@@ -1954,6 +1954,29 @@ body.practice-modal-open {
   outline-offset: 2px;
 }
 
+.corpus-regenerate-button {
+  justify-self: start;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 11px;
+  background: var(--surface-raised);
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.corpus-regenerate-button:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.corpus-regenerate-button:focus-visible {
+  outline: 3px solid var(--accent-hover);
+  outline-offset: 2px;
+}
+
 .corpus-editor-field {
   display: grid;
   gap: 5px;

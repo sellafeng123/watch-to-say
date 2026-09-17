@@ -2143,32 +2143,48 @@ async function showExplanation(selectedText, selectedTimestamp) {
     if (e.target === modal) modal.remove();
   });
 
+  const selectionRequest = {
+    source: "sidepanel-transcript",
+    selectedText,
+    videoId: currentVideoId,
+    timestampSeconds: selectedTimestamp,
+    videoTitle: currentVideoTitle,
+    channelName: currentChannelName,
+  };
+  await loadTranscriptContextualGloss(
+    document.getElementById("explanationContent"),
+    selectionRequest,
+    false,
+  );
+}
+
+async function loadTranscriptContextualGloss(contentDiv, selectionRequest, forceRefresh) {
+  if (!contentDiv) return;
+  contentDiv.innerHTML = `
+    <div class="explain-loading">
+      <div class="loading-bar"></div>
+      <span>${forceRefresh ? "正在重新生成 AI 语境释义..." : "正在读取 AI 语境释义..."}</span>
+    </div>
+  `;
   try {
     const result = await chrome.runtime.sendMessage({
       action: "getContextualGloss",
-      selectionRequest: {
-        source: "sidepanel-transcript",
-        selectedText,
-        videoId: currentVideoId,
-        timestampSeconds: selectedTimestamp,
-        videoTitle: currentVideoTitle,
-        channelName: currentChannelName,
-      },
+      selectionRequest,
+      forceRefresh,
     });
 
-    const contentDiv = document.getElementById("explanationContent");
     if (result.success) {
       YTD_CORPUS_UI.mountGlossCard({
         root: contentDiv,
         gloss: result.gloss,
         selection: result.selection,
         onSave: (entry) => showCorpusEntryPreview(contentDiv, entry, result.destination),
+        onRegenerate: () => loadTranscriptContextualGloss(contentDiv, selectionRequest, true),
       });
     } else {
       contentDiv.innerHTML = `<div class="explain-error">Failed to get explanation: ${escapeHtml(result.message || result.error)}</div>`;
     }
   } catch (error) {
-    const contentDiv = document.getElementById("explanationContent");
     contentDiv.innerHTML = `<div class="explain-error">Error: ${escapeHtml(error.message)}</div>`;
   }
 }

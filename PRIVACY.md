@@ -20,7 +20,7 @@ Depending on the feature you use, YouTube Digest handles:
 - learner entries you prepare for an Obsidian Markdown note, including selected
   expressions, nearby subtitle context, AI contextual glosses, and your edits;
 - Supadata and DeepSeek configuration, including API keys; and
-- cached transcript, digest, and translation results.
+- cached transcript, digest, translation, and AI contextual-gloss results.
 
 ## Where data goes
 
@@ -67,6 +67,9 @@ YouTube Digest uses Chrome's local extension storage, not a YouTube Digest cloud
 - Recent transcript, digest, and per-segment translation cache entries are stored
   locally. The cache is limited to 20 videos, and entries older than 30 days are
   removed when the side panel opens.
+- Up to 300 AI contextual glosses are stored locally by video, caption occurrence,
+  and selected text so reopening the same highlighted context does not send another
+  DeepSeek request. Choosing **重新生成** replaces that one cached gloss.
 - Structured learner question banks remain locally until you delete them. The original pasted text is discarded after you explicitly save a successful structured preview. Active speaking-round state remains only in the current side-panel session.
 
 Chrome extension storage is not a password vault. Anyone with sufficient access to your browser profile or device may be able to recover locally stored keys or content. Use scoped keys where providers support them, set spending limits, and rotate or revoke a key if the device or browser profile is compromised.

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const ui = require("../corpus-ui.js");
+const { createFakeDom, click } = require("./helpers/fake-dom.js");
 
 test("prepares editable corpus state without preselecting AI extensions", () => {
   const state = ui.createEditorState({
@@ -69,3 +70,38 @@ test("builds a readable export-preview model and makes missing usage contexts ex
     "未设置，可在编辑时填写",
   );
 });
+
+test("offers an explicit regenerate action without replacing the normal edit action", () => {
+  const { root } = createFakeDom();
+  let regenerations = 0;
+  ui.mountGlossCard({
+    root,
+    gloss: aiGloss(),
+    selection: { selectedText: "get into the zone" },
+    onSave() {},
+    onRegenerate: () => { regenerations += 1; },
+  });
+
+  assert.equal(root.querySelector(".corpus-primary-button").textContent, "编辑后沉淀");
+  const regenerate = root.querySelector(".corpus-regenerate-button");
+  assert.equal(regenerate.textContent, "重新生成");
+  click(regenerate);
+  assert.equal(regenerations, 1);
+});
+
+function aiGloss() {
+  return {
+    expression: "get into the zone",
+    kind: "phrase",
+    suggestedUsageContexts: "学习",
+    partOfSpeech: "verb phrase",
+    contextMeaningEn: "to become focused",
+    contextMeaningZh: "进入专注状态",
+    collocations: [],
+    sentenceFrame: "I get into the zone when ...",
+    spokenFrequency: "common",
+    frequencyReasonZh: "口语常见",
+    paraphrases: [],
+    relatedExtensions: [],
+  };
+}

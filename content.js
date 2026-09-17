@@ -148,6 +148,8 @@ function createPlayerCorpusCardHost(rect) {
     .prompt { margin: 0; font-size: 13px; color: #5d477c; }
     button, .corpus-primary-button { border: 0; border-radius: 8px; padding: 9px 11px; background: #6f42c1; color: #fff; font: inherit; font-size: 13px; cursor: pointer; }
     button:hover, .corpus-primary-button:hover { background: #5d32a7; }
+    .corpus-regenerate-button { justify-self: start; border: 1px solid #d8c8f4; background: #fff; color: #6f42c1; }
+    .corpus-regenerate-button:hover { background: #f7f4fc; }
     .corpus-gloss-card, .corpus-editor { display: grid; gap: 10px; }
     .corpus-gloss-card h2, .corpus-editor h2, .corpus-gloss-card h3 { margin: 0; }
     .corpus-gloss-card h2 { font-size: 20px; }
@@ -182,31 +184,41 @@ function showPlayerCaptionAction(rect, selectionRequest) {
   button.type = "button";
   button.textContent = "生成 AI 语境双解";
   button.addEventListener("mousedown", (event) => event.preventDefault());
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    button.textContent = "正在生成…";
-    try {
-      const result = await chrome.runtime.sendMessage({
-        action: "getContextualGloss",
-        selectionRequest,
-      });
-      if (!result?.success) throw new Error(result?.message || result?.error || "生成失败");
-      YTD_CORPUS_UI.mountGlossCard({
-        root: shell,
-        gloss: result.gloss,
-        selection: result.selection,
-        onSave: (entry) => showPlayerCorpusEntryPreview(shell, entry, result.destination),
-      });
-    } catch (error) {
-      button.disabled = false;
-      button.textContent = "重新生成 AI 语境双解";
-      const errorText = document.createElement("p");
-      errorText.className = "error";
-      errorText.textContent = error.message || "生成失败";
-      shell.append(errorText);
-    }
-  });
+  button.addEventListener("click", () => loadPlayerContextualGloss(shell, selectionRequest, false));
   shell.append(message, button);
+}
+
+async function loadPlayerContextualGloss(shell, selectionRequest, forceRefresh) {
+  shell.replaceChildren();
+  const loading = document.createElement("p");
+  loading.className = "prompt";
+  loading.textContent = forceRefresh ? "正在重新生成 AI 语境释义…" : "正在读取 AI 语境释义…";
+  shell.append(loading);
+  try {
+    const result = await chrome.runtime.sendMessage({
+      action: "getContextualGloss",
+      selectionRequest,
+      forceRefresh,
+    });
+    if (!result?.success) throw new Error(result?.message || result?.error || "生成失败");
+    YTD_CORPUS_UI.mountGlossCard({
+      root: shell,
+      gloss: result.gloss,
+      selection: result.selection,
+      onSave: (entry) => showPlayerCorpusEntryPreview(shell, entry, result.destination),
+      onRegenerate: () => loadPlayerContextualGloss(shell, selectionRequest, true),
+    });
+  } catch (error) {
+    shell.replaceChildren();
+    const errorText = document.createElement("p");
+    errorText.className = "error";
+    errorText.textContent = error.message || "生成失败";
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "重试";
+    retry.addEventListener("click", () => loadPlayerContextualGloss(shell, selectionRequest, forceRefresh));
+    shell.append(errorText, retry);
+  }
 }
 
 function showPlayerCorpusEntryPreview(root, entry, destination) {

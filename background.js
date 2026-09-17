@@ -21,6 +21,8 @@ const AI_PROVIDER_HARD_TIMEOUT_MS = 120_000;
 const AI_PROVIDER_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const CORPUS_VIDEO_NOTES_KEY = "ytd_corpus_video_notes";
 const CORPUS_EXPORTS_KEY = "ytd_corpus_exports";
+const CONTEXTUAL_GLOSS_CACHE_KEY = "ytd_contextual_gloss_cache_v1";
+const CONTEXTUAL_GLOSS_CACHE_LIMIT = 300;
 const PRACTICE_HIGHLIGHTS_KEY = "ytd_practice_highlights_v1";
 const QUESTION_BANK_PREVIEWS_KEY = "ytd_question_bank_previews_v1";
 const QUESTION_BANK_IMPORT_CHUNK_CHARS = 12_000;
@@ -922,7 +924,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "getContextualGloss") {
-    handleContextualGloss(message.selectionRequest)
+    handleContextualGloss(message.selectionRequest, { forceRefresh: message.forceRefresh === true })
       .then(sendResponse)
       .catch((err) => sendResponse({ success: false, error: err.message }));
     return true;
@@ -2156,6 +2158,7 @@ function resolveSelectionContext(selectionRequest, transcript) {
     .map((row) => row.text)
     .join(" ");
   const targetText = rows[targetIndex].text;
+  const contextTimestampSeconds = rows[targetIndex].start;
   const afterText = rows
     .slice(targetIndex + 1, targetIndex + 3)
     .map((row) => row.text)
@@ -2164,11 +2167,50 @@ function resolveSelectionContext(selectionRequest, transcript) {
   return {
     ...selection,
     timestampedUrl,
+    contextTimestampSeconds,
     targetText,
     beforeText,
     afterText,
     context: [beforeText, targetText, afterText].filter(Boolean).join(" "),
   };
+}
+
+function contextualGlossCacheId(selectionContext) {
+  if (!selectionContext) return "";
+  const videoId = cleanPracticeHighlightText(selectionContext.videoId, 100);
+  const selectedText = cleanPracticeHighlightText(selectionContext.selectedText, 500).toLocaleLowerCase();
+  const contextTimestampSeconds = Math.floor(Number(selectionContext.contextTimestampSeconds));
+  if (!videoId || !selectedText || !Number.isFinite(contextTimestampSeconds) || contextTimestampSeconds < 0) return "";
+  return JSON.stringify([videoId, contextTimestampSeconds, selectedText]);
+}
+
+async function readContextualGlossCache(selectionContext) {
+  const cacheId = contextualGlossCacheId(selectionContext);
+  if (!cacheId) return null;
+  const stored = await chrome.storage.local.get(CONTEXTUAL_GLOSS_CACHE_KEY);
+  const records = Array.isArray(stored[CONTEXTUAL_GLOSS_CACHE_KEY])
+    ? stored[CONTEXTUAL_GLOSS_CACHE_KEY].slice(0, CONTEXTUAL_GLOSS_CACHE_LIMIT)
+    : [];
+  const record = records.find((item) => item?.cacheId === cacheId);
+  const gloss = YTD_CORPUS.normalizeContextualGloss(record?.gloss);
+  return gloss?.expression.toLocaleLowerCase() === selectionContext.selectedText.toLocaleLowerCase()
+    ? gloss
+    : null;
+}
+
+async function writeContextualGlossCache(selectionContext, gloss) {
+  const cacheId = contextualGlossCacheId(selectionContext);
+  const normalizedGloss = YTD_CORPUS.normalizeContextualGloss(gloss);
+  if (!cacheId || !normalizedGloss) return;
+  const stored = await chrome.storage.local.get(CONTEXTUAL_GLOSS_CACHE_KEY);
+  const records = Array.isArray(stored[CONTEXTUAL_GLOSS_CACHE_KEY])
+    ? stored[CONTEXTUAL_GLOSS_CACHE_KEY].slice(0, CONTEXTUAL_GLOSS_CACHE_LIMIT)
+    : [];
+  const next = [
+    { cacheId, gloss: normalizedGloss, savedAt: Date.now() },
+    ...records.filter((item) => item?.cacheId !== cacheId),
+  ].slice(0, CONTEXTUAL_GLOSS_CACHE_LIMIT);
+  await chrome.storage.local.set({ [CONTEXTUAL_GLOSS_CACHE_KEY]: next });
 }
 
 function validateContextualGlossResponse(rawResponse, selectedText) {
@@ -2201,7 +2243,7 @@ async function loadCorpusTranscript(videoId) {
   return fetched.transcript;
 }
 
-async function handleContextualGloss(selectionRequest) {
+async function handleContextualGloss(selectionRequest, { forceRefresh = false } = {}) {
   const selection = YTD_CORPUS.normalizeSelectionRequest(selectionRequest);
   if (!selection) {
     return { success: false, error: "INVALID_SELECTION", message: "Select text from captions or Transcript." };
@@ -2224,6 +2266,23 @@ async function handleContextualGloss(selectionRequest) {
         error: "NO_TRANSCRIPT_CONTEXT",
         message: "A timestamped transcript is needed to explain this selection.",
       };
+    }
+    const destination = await resolveVideoNoteDestination(
+      selectionContext.videoId,
+      selectionContext.videoTitle || "Untitled Video",
+      new Date(),
+    );
+    if (!forceRefresh) {
+      const cachedGloss = await readContextualGlossCache(selectionContext);
+      if (cachedGloss) {
+        return {
+          success: true,
+          selection: selectionContext,
+          gloss: cachedGloss,
+          destination,
+          fromCache: true,
+        };
+      }
     }
     const variables = {
       selectedText: selectionContext.selectedText,
@@ -2260,12 +2319,8 @@ async function handleContextualGloss(selectionRequest) {
         message: "The AI response was incomplete. Try again.",
       };
     }
-    const destination = await resolveVideoNoteDestination(
-      selectionContext.videoId,
-      selectionContext.videoTitle || "Untitled Video",
-      new Date(),
-    );
-    return { success: true, selection: selectionContext, gloss, destination };
+    await writeContextualGlossCache(selectionContext, gloss);
+    return { success: true, selection: selectionContext, gloss, destination, fromCache: false };
   } catch (error) {
     if (error.status === 429) {
       return {
