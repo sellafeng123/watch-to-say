@@ -2,13 +2,103 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 const source = fs.readFileSync(
   path.resolve(__dirname, "..", "sidepanel.js"),
   "utf8",
 );
 
-test("all timestamped transcript row clicks use the selection-aware seek helper", () => {
+function loadTranscriptInteractionHelpers() {
+  const listeners = { addListener() {} };
+  const sandbox = {
+    console,
+    URL,
+    setTimeout,
+    clearTimeout,
+    window: { getSelection: () => null, close() {} },
+    document: {
+      addEventListener() {},
+      querySelectorAll: () => [],
+      querySelector: () => null,
+      getElementById: () => null,
+      createElement: () => ({
+        set textContent(value) { this._textContent = String(value); },
+        get innerHTML() { return this._textContent || ""; },
+      }),
+    },
+    chrome: {
+      runtime: { onMessage: listeners, sendMessage: async () => ({}) },
+      windows: { getCurrent: async () => ({ id: 1 }) },
+      tabs: { onUpdated: listeners, onActivated: listeners },
+    },
+    YTD_SETTINGS: {},
+  };
+  sandbox.globalThis = sandbox;
+  vm.runInNewContext(source, sandbox);
+  return sandbox;
+}
+
+test("clicking a saved Transcript highlight opens its gloss instead of seeking", () => {
+  const sandbox = loadTranscriptInteractionHelpers();
+  vm.runInNewContext(
+    "globalThis.__interactionCalls = []; showExplanation = (text, seconds) => __interactionCalls.push(['gloss', text, seconds]); seekTo = (seconds) => __interactionCalls.push(['seek', seconds]);",
+    sandbox,
+  );
+  const event = {
+    target: {
+      closest: (selector) => selector === "mark.practice-highlight"
+        ? { textContent: "  get into the zone  " }
+        : null,
+    },
+    preventDefault() { this.defaultPrevented = true; },
+    stopPropagation() { this.propagationStopped = true; },
+  };
+
+  sandbox.__YTD_TRANSCRIPT_TESTING__.handleTranscriptEntryClick(event, 42);
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sandbox.__interactionCalls)),
+    [["gloss", "get into the zone", 42]],
+  );
+  assert.equal(event.defaultPrevented, true);
+  assert.equal(event.propagationStopped, true);
+});
+
+test("keyboard activation opens a saved Transcript highlight while ordinary row clicks still seek", () => {
+  const sandbox = loadTranscriptInteractionHelpers();
+  vm.runInNewContext(
+    "globalThis.__interactionCalls = []; showExplanation = (text, seconds) => __interactionCalls.push(['gloss', text, seconds]); seekTo = (seconds) => __interactionCalls.push(['seek', seconds]);",
+    sandbox,
+  );
+  const mark = {
+    textContent: "focus on",
+    closest: (selector) => selector === "mark.practice-highlight" ? mark : null,
+  };
+  const keyEvent = {
+    key: "Enter",
+    target: mark,
+    preventDefault() { this.defaultPrevented = true; },
+    stopPropagation() { this.propagationStopped = true; },
+  };
+  const rowEvent = {
+    target: { closest: () => null },
+    preventDefault() {},
+    stopPropagation() {},
+  };
+
+  sandbox.__YTD_TRANSCRIPT_TESTING__.handleTranscriptEntryKeydown(keyEvent, 18);
+  sandbox.__YTD_TRANSCRIPT_TESTING__.handleTranscriptEntryClick(rowEvent, 27);
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(sandbox.__interactionCalls)),
+    [["gloss", "focus on", 18], ["seek", 27]],
+  );
+  assert.equal(keyEvent.defaultPrevented, true);
+  assert.equal(keyEvent.propagationStopped, true);
+});
+
+test("all timestamped transcript row clicks use the highlight-aware interaction helper", () => {
   assert.match(
     source,
     /function hasNonCollapsedTextSelection\(\)[\s\S]*?selection\.rangeCount > 0 && !selection\.isCollapsed/,
@@ -19,7 +109,7 @@ test("all timestamped transcript row clicks use the selection-aware seek helper"
   );
 
   const guardedRowHandlers = source.match(
-    /div\.addEventListener\("click", \(event\) =>\s+seekFromTranscriptEntryClick\(event, group\.start\),\s+\);/g,
+    /div\.addEventListener\("click", \(event\) =>\s+handleTranscriptEntryClick\(event, group\.start\),\s+\);/g,
   );
   assert.equal(
     guardedRowHandlers?.length,
@@ -28,7 +118,7 @@ test("all timestamped transcript row clicks use the selection-aware seek helper"
   );
   assert.match(
     source,
-    /div\.addEventListener\("click", \(event\) =>\s+seekFromTranscriptEntryClick\(event, segment\.start\),\s+\);/,
+    /div\.addEventListener\("click", \(event\) =>\s+handleTranscriptEntryClick\(event, segment\.start\),\s+\);/,
     "translated-only and bilingual rows must use the guard",
   );
   assert.doesNotMatch(

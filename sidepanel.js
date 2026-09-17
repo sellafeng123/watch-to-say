@@ -1077,6 +1077,31 @@ function seekFromTranscriptEntryClick(event, seconds) {
   seekTo(seconds);
 }
 
+function activatePracticeHighlight(event, seconds) {
+  const highlight = event.target?.closest?.("mark.practice-highlight");
+  if (!highlight) return false;
+
+  const expression = String(highlight.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!expression) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+  void showExplanation(expression, seconds);
+  return true;
+}
+
+function handleTranscriptEntryClick(event, seconds) {
+  if (activatePracticeHighlight(event, seconds)) return;
+  seekFromTranscriptEntryClick(event, seconds);
+}
+
+function handleTranscriptEntryKeydown(event, seconds) {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  activatePracticeHighlight(event, seconds);
+}
+
 function renderTranscript() {
   if (!currentTranscript) return;
 
@@ -1104,7 +1129,10 @@ function renderTranscript() {
     `;
 
     div.addEventListener("click", (event) =>
-      seekFromTranscriptEntryClick(event, group.start),
+      handleTranscriptEntryClick(event, group.start),
+    );
+    div.addEventListener("keydown", (event) =>
+      handleTranscriptEntryKeydown(event, group.start),
     );
     transcriptList.appendChild(div);
   });
@@ -1128,7 +1156,7 @@ function renderPracticeTranscriptMarkup(text, highlights) {
     .sort((left, right) => right.length - left.length);
   expressions.forEach((expression) => {
     const pattern = new RegExp(`(${escapeRegExp(expression)})`, "gi");
-    markup = markup.replace(pattern, '<mark class="practice-highlight" aria-label="本期重点表达">$1</mark>');
+    markup = markup.replace(pattern, '<mark class="practice-highlight" role="button" tabindex="0" aria-label="打开这条重点表达的 AI 语境双解">$1</mark>');
   });
   return markup;
 }
@@ -2955,7 +2983,10 @@ function renderTranscriptModeRows(segments, mode) {
       ${renderTranscriptSegmentContent(segment, mode, cached, "")}
     `;
     div.addEventListener("click", (event) =>
-      seekFromTranscriptEntryClick(event, segment.start),
+      handleTranscriptEntryClick(event, segment.start),
+    );
+    div.addEventListener("keydown", (event) =>
+      handleTranscriptEntryKeydown(event, segment.start),
     );
     transcriptList.appendChild(div);
     rows.push(div);
@@ -3212,4 +3243,6 @@ globalThis.__YTD_TRANSCRIPT_TESTING__ = {
   getNavigationUrl,
   renderSubtitleInlineMarkup,
   renderTranscriptSegmentContent,
+  handleTranscriptEntryClick,
+  handleTranscriptEntryKeydown,
 };
