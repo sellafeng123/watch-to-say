@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">Corpus notebook with a mint star</title>
+  <path d="M18 8C9 10 6 18 7 29l3 67c1 10 8 17 19 17l68-2c11 0 18-8 18-19l1-66c0-11-8-18-19-19Z" fill="#A5D8DD" transform="translate(6 6)"/>
+  <path d="M18 8C9 10 6 18 7 29l3 67c1 10 8 17 19 17l68-2c11 0 18-8 18-19l1-66c0-11-8-18-19-19Z" fill="#C9AFFE" stroke="#5F3FB8" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M33 40 91 37c5 0 8 3 8 8v43c0 8-5 13-13 14l-50 2c-5 0-8-3-8-8l-2-47c0-5 2-8 7-9Z" fill="#FFFFFF" stroke="#5F3FB8" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M62 40v62" fill="none" stroke="#C9AFFE" stroke-width="4" stroke-dasharray="7 6"/>
+  <path d="M38 56h14M38 70h14M38 84h14" fill="none" stroke="#A5D8DD" stroke-width="5" stroke-linecap="square"/>
+  <path d="M72 55h16M72 68h16M72 81h14" fill="none" stroke="#C9AFFE" stroke-width="4" stroke-linecap="round"/>
+  <path d="m94 17 5 10 11 1-8 8 2 11-10-5-10 5 2-11-8-8 11-1Z" fill="#A5D8DD" stroke="#A5D8DD" stroke-width="2" stroke-linejoin="round"/>
+</svg>

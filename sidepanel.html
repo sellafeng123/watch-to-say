@@ -118,13 +118,19 @@
                 </button>
               </div>
             </div>
-            <button
-              id="startPracticeBtn"
-              class="practice-start-btn"
-              type="button"
-              disabled
-              title="先保存一个想练的表达"
-            >本期表达练习 · 已选 0 条</button>
+            <div class="practice-launch-card">
+              <div class="practice-launch-copy">
+                <strong>本期表达练习</strong>
+                <span><span id="practiceSelectionCount" aria-live="polite">已选 0 个重点</span> · 像手账一样收集、搭建并内化表达。</span>
+              </div>
+              <button
+                id="startPracticeBtn"
+                class="practice-start-btn"
+                type="button"
+                disabled
+                title="先保存一个想练的表达"
+              >开始内化练习</button>
+            </div>
             <!-- Search stays inside the Transcript tab and never changes playback. -->
             <div class="transcript-search" role="search">
               <svg

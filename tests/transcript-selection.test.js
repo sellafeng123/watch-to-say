@@ -164,7 +164,8 @@ test("a prepared Transcript corpus entry becomes a practice highlight before Obs
 
 test("Transcript shows a practice entry and safely emphasizes saved expressions", () => {
   const html = fs.readFileSync(path.resolve(__dirname, "..", "sidepanel.html"), "utf8");
-  assert.match(html, /id="startPracticeBtn"[\s\S]*?本期表达练习 · 已选 0 条/);
+  assert.match(html, /id="practiceSelectionCount"[\s\S]*?已选 0 个重点/);
+  assert.match(html, /id="startPracticeBtn"[\s\S]*?开始内化练习/);
   assert.match(source, /function renderPracticeTranscriptMarkup\(text, highlights\)/);
   assert.match(source, /class="practice-highlight"/);
   assert.match(source, /function refreshPracticeHighlights\(\)[\s\S]*?action: "getPracticeHighlights"/);

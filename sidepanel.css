@@ -1,49 +1,51 @@
 /*
- * SIDE PANEL STYLES — "Calm Terracotta" (Light Mode)
+ * SIDE PANEL STYLES — "Corpus Palace Pixel Journal" (Light Mode)
  *
- * Design philosophy:
- * - Warm, editorial, unhurried. The opposite of shouty.
- * - Soft cream paper background; white cards float on it with gentle shadows.
- * - Rounded corners everywhere (no sharp brutalist edges).
- * - Terracotta is the single warm accent, used sparingly; sage is a quiet
- *   secondary. Red is gone.
- * - Fully sans-serif, using system fonts so the extension makes no font
- *   requests to third parties.
+ * Lavender structures the workspace, deep purple marks primary actions,
+ * mint identifies saved expressions and completed states, and amber is
+ * reserved for warnings. Slightly uneven radii and offset mint shadows carry
+ * Stella's hand-drawn journal character without reducing transcript clarity.
  */
 
 /* ============================================================
    CSS VARIABLES (design tokens)
    ============================================================ */
 :root {
-  /* Surfaces & ink — all warm-toned, never pure grey */
-  --bg: #f7f3ec;
+  /* Surfaces & ink */
+  --bg: #f4edff;
   --surface: #ffffff;
-  --surface-raised: #fbf8f2;
-  --border: #ece5d9;
-  --border-heavy: #ddd4c4;
-  --text: #2e2a24;
-  --text-secondary: #6b6258;
-  --text-muted: #a39a8d;
+  --surface-raised: #faf7ff;
+  --border: #ded0f5;
+  --border-heavy: #c9affe;
+  --text: #352d46;
+  --text-secondary: #71677f;
+  --text-muted: #9a90a8;
 
   /* Accents */
-  --accent: #c8674f; /* terracotta */
-  --accent-hover: #b25742;
-  --accent-dim: rgba(200, 103, 79, 0.1);
-  --sage: #7c8b6f; /* quiet secondary */
-  --sage-dim: rgba(124, 139, 111, 0.14);
-  --success: #7c8b6f;
-  --highlight: #d99a5b;
+  --accent: #8b5cf6;
+  --accent-hover: #6f46d6;
+  --primary: #5f3fb8;
+  --primary-hover: #4b2f99;
+  --accent-dim: rgba(139, 92, 246, 0.12);
+  --mint: #a5d8dd;
+  --mint-strong: #68aeb5;
+  --mint-dim: rgba(165, 216, 221, 0.28);
+  --sage: #68aeb5;
+  --sage-dim: rgba(165, 216, 221, 0.28);
+  --success: #4f8e78;
+  --highlight: #a5d8dd;
+  --warning: #fbbf24;
 
-  /* Soft shadows give depth instead of heavy borders */
-  --shadow-sm: 0 1px 3px rgba(90, 80, 60, 0.06);
-  --shadow-md: 0 4px 16px rgba(90, 80, 60, 0.1);
-  --shadow-lg: 0 16px 48px rgba(50, 42, 32, 0.22);
+  /* Purple depth and mint offset accents */
+  --shadow-sm: 0 2px 0 rgba(201, 175, 254, 0.5);
+  --shadow-md: 4px 4px 0 rgba(165, 216, 221, 0.72);
+  --shadow-lg: 8px 8px 0 rgba(95, 63, 184, 0.18);
 
   /* Rounding scale */
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
-  --r-xl: 20px;
+  --r-sm: 9px 7px 10px 6px;
+  --r-md: 13px 9px 14px 8px;
+  --r-lg: 18px 13px 19px 12px;
+  --r-xl: 22px 16px 23px 14px;
   --r-pill: 999px;
 
   /* Type — system fonts keep the extension self-contained. */
@@ -110,8 +112,8 @@ body {
 .header {
   flex-shrink: 0;
   padding: 16px 20px 0;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--border-heavy);
+  border-bottom: 2px solid var(--border-heavy);
   box-shadow: var(--shadow-sm);
 }
 
@@ -153,10 +155,7 @@ body {
 }
 
 /* ============================================================
-   TAB NAVIGATION — pill tabs on the white header.
-   No background "track": the header is white and the content below is cream,
-   so the only thing in this strip is the muted labels + one terracotta pill.
-   That keeps the menu visually separate from the content area below it.
+   TAB NAVIGATION — white journal tab with a mint offset shadow.
    ============================================================ */
 .tabs {
   display: flex;
@@ -174,7 +173,7 @@ body {
   font-weight: 600;
   font-size: 13px;
   letter-spacing: -0.1px;
-  color: var(--text-muted);
+  color: var(--text);
   background: none;
   border: none;
   border-radius: var(--r-pill);
@@ -187,20 +186,20 @@ body {
 }
 
 .tab:hover {
-  color: var(--text-secondary);
+  color: var(--primary);
   background: var(--surface-raised);
 }
 
-/* Active pill — terracotta fill on the white header */
 .tab.active {
-  color: #fff;
-  background: var(--accent);
-  box-shadow: 0 2px 8px rgba(200, 103, 79, 0.3);
+  color: var(--primary);
+  background: var(--surface);
+  border: 1px solid var(--border-heavy);
+  box-shadow: 4px 4px 0 var(--mint);
 }
 
 .tab.active:hover {
-  color: #fff;
-  background: var(--accent);
+  color: var(--primary);
+  background: var(--surface);
 }
 
 /* ============================================================
@@ -713,48 +712,93 @@ body {
   display: flex;
   gap: 12px;
   padding: 11px 10px;
+  border: 2px solid var(--border-heavy);
   border-radius: var(--r-sm);
-  margin-bottom: 2px;
-  transition: background 0.14s ease;
+  margin-bottom: 10px;
+  background: var(--surface);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease;
   cursor: pointer;
 }
 
 .transcript-entry:hover {
-  background: var(--surface-raised);
+  border-color: var(--accent);
+  box-shadow: 3px 3px 0 var(--mint);
+  transform: translate(-1px, -1px);
+}
+
+.practice-launch-card {
+  display: grid;
+  gap: 12px;
+  margin: 2px 0 16px;
+}
+
+.practice-launch-copy {
+  display: grid;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.practice-launch-copy strong {
+  color: var(--accent-hover);
+  font-size: 13px;
+}
+
+.practice-launch-copy span {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .practice-start-btn {
   width: 100%;
-  margin: 2px 0 10px;
-  border: 1px solid #cbb9e9;
+  border: 2px solid var(--accent);
   border-radius: var(--r-sm);
-  padding: 9px 10px;
-  background: #f7f3ff;
-  color: #5d3f91;
+  padding: 11px 12px;
+  background: var(--primary);
+  box-shadow: 4px 4px 0 var(--mint);
+  color: #fff;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  text-align: left;
+  text-align: center;
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
-.practice-start-btn:not(:disabled) { cursor: pointer; }
+.practice-start-btn:not(:disabled) {
+  cursor: pointer;
+}
+
+.practice-start-btn:not(:disabled):hover {
+  background: var(--primary-hover);
+  box-shadow: 2px 2px 0 var(--mint);
+  transform: translate(2px, 2px);
+}
 
 .practice-start-btn:disabled {
-  color: var(--text-muted);
-  opacity: .8;
+  opacity: 0.48;
+  box-shadow: none;
 }
 
 .practice-highlight {
-  padding: 0 1px;
-  border-radius: 3px;
-  background: #ede3ff;
-  box-shadow: inset 0 -2px 0 #9467dc;
+  padding: 0 2px;
+  border-radius: 4px 3px 5px 2px;
+  background: var(--mint);
+  box-shadow: inset 0 -2px 0 var(--accent);
   color: inherit;
   cursor: pointer;
 }
 
 .practice-highlight:focus-visible {
-  outline: 2px solid #7c4dcc;
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -773,7 +817,7 @@ body.practice-modal-open {
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(46, 42, 36, 0.48);
+  background: rgba(53, 45, 70, 0.48);
   backdrop-filter: blur(4px);
 }
 
@@ -841,7 +885,7 @@ body.practice-modal-open {
 }
 
 .practice-ai-prompt {
-  border-left: 3px solid #9467dc;
+  border-left: 3px solid var(--accent);
   padding-left: 12px;
 }
 
@@ -931,7 +975,8 @@ body.practice-modal-open {
 
 .practice-primary {
   border: 1px solid var(--accent);
-  background: var(--accent);
+  background: var(--primary);
+  box-shadow: 3px 3px 0 var(--mint);
   color: #fff;
 }
 
@@ -1003,25 +1048,25 @@ body.practice-modal-open {
 
 .practice-expression-chip {
   max-width: 100%;
-  border: 1px solid #cbb9e9;
+  border: 1px solid var(--border-heavy);
   border-radius: var(--r-sm);
   padding: 5px 9px;
-  background: #f7f3ff;
-  color: #5d3f91;
+  background: var(--surface-raised);
+  color: var(--accent-hover);
   font: inherit;
   overflow-wrap: anywhere;
   cursor: pointer;
 }
 
 .practice-expression-chip.is-used {
-  border-color: #89b69a;
-  background: #eef8f1;
-  color: #336847;
+  border-color: var(--mint-strong);
+  background: var(--mint-dim);
+  color: #315f64;
 }
 
 .practice-expression-chip.is-unused {
   border-style: dashed;
-  background: #f7f5f2;
+  background: var(--surface-raised);
   color: var(--text-muted);
 }
 
@@ -1052,7 +1097,7 @@ body.practice-modal-open {
 
 .practice-inline-error {
   margin: 0;
-  border-left: 3px solid #b44b42;
+  border-left: 3px solid var(--warning);
   padding: 10px;
   color: var(--text);
   font-size: 13px;
@@ -1101,7 +1146,7 @@ body.practice-modal-open {
 .transcript-search-highlight {
   padding: 1px 0;
   border-radius: 3px;
-  background: #f5d9a8;
+  background: #eee7ff;
   color: inherit;
 }
 
@@ -1248,8 +1293,9 @@ body.practice-modal-open {
 
 /* Active playback highlight */
 .transcript-entry.active-playback {
-  background: var(--accent-dim);
-  border-left: 3px solid var(--accent);
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 4px 4px 0 var(--mint);
 }
 
 .transcript-entry.active-playback .transcript-time {
@@ -1264,22 +1310,22 @@ body.practice-modal-open {
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
-  background: var(--accent);
+  background: var(--primary);
   color: white;
   border: none;
   padding: 10px 22px;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-sm);
   font-family: var(--font-body);
   font-weight: 600;
   font-size: 12px;
   letter-spacing: 0.3px;
   cursor: pointer;
   transition: all 0.18s ease;
-  box-shadow: 0 6px 18px rgba(200, 103, 79, 0.4);
+  box-shadow: 4px 4px 0 var(--mint);
 }
 
 .follow-playback-btn:hover {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
   transform: translateX(-50%) translateY(-1px);
 }
 
@@ -1391,18 +1437,18 @@ body.practice-modal-open {
   font-size: 13px;
   letter-spacing: 0.2px;
   padding: 12px 28px;
-  background: var(--accent);
+  background: var(--primary);
   color: white;
   border: none;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-sm);
   cursor: pointer;
   transition: all 0.18s ease;
   margin-top: 8px;
-  box-shadow: 0 4px 14px rgba(200, 103, 79, 0.3);
+  box-shadow: 4px 4px 0 var(--mint);
 }
 
 .error-btn:hover {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
@@ -1420,25 +1466,15 @@ body.practice-modal-open {
   padding: 40px 24px;
 }
 
-/* A soft terracotta tile with a CSS play mark, matching the brand. */
+/* Brand notebook mark used by Chrome and by the empty state. */
 .welcome-icon {
   width: 84px;
   height: 84px;
-  border-radius: var(--r-xl);
-  background: linear-gradient(145deg, #d2735a, #bd5740);
-  box-shadow: 0 12px 30px rgba(200, 103, 79, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
+  background: url("icons/corpus-palace-logo.svg") center / contain no-repeat;
 }
 
 .welcome-icon::after {
-  content: "";
-  border-style: solid;
-  border-width: 16px 0 16px 26px;
-  border-color: transparent transparent transparent #fff;
-  margin-left: 6px;
+  content: none;
 }
 
 .welcome-title {
@@ -1529,7 +1565,7 @@ body.practice-modal-open {
   background: var(--surface);
   transform: translateX(-50%);
   animation: selectionToolbarIn 0.15s ease;
-  box-shadow: 0 8px 24px rgba(50, 42, 32, 0.16);
+  box-shadow: 0 8px 24px rgba(53, 45, 70, 0.16);
 }
 
 /* Keep horizontal centering in every animation frame. The shared fadeIn
@@ -1589,7 +1625,7 @@ body.practice-modal-open {
 .explain-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(46, 42, 36, 0.55);
+  background: rgba(53, 45, 70, 0.55);
   backdrop-filter: blur(3px);
   z-index: 9999;
   display: flex;
@@ -1725,18 +1761,18 @@ body.practice-modal-open {
 }
 
 .notes-filter .enhance-btn.active {
-  background: var(--accent);
+  background: var(--primary);
   color: white;
-  box-shadow: 0 2px 6px rgba(200, 103, 79, 0.3);
+  box-shadow: 0 2px 6px rgba(139, 92, 246, 0.3);
 }
 
 .notes-filter .enhance-btn.active:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
   color: white;
 }
 
 .notes-filter .enhance-btn.active:focus-visible {
-  background: var(--accent);
+  background: var(--primary);
   color: white;
 }
 
@@ -1783,7 +1819,7 @@ body.practice-modal-open {
 }
 
 .note-timestamp:hover {
-  background: var(--accent);
+  background: var(--primary);
   color: white;
 }
 
@@ -1943,7 +1979,7 @@ body.practice-modal-open {
   border: 0;
   border-radius: var(--r-sm);
   padding: 9px 12px;
-  background: var(--accent);
+  background: var(--primary);
   color: white;
   font-family: var(--font-body);
   font-size: 12px;
@@ -1952,7 +1988,7 @@ body.practice-modal-open {
 }
 
 .corpus-primary-button:hover {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
 }
 
 .corpus-primary-button:focus-visible {

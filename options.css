@@ -1,12 +1,17 @@
 :root {
   color-scheme: light;
-  --bg: #f7f3ec;
+  --bg: #f4edff;
   --surface: #ffffff;
-  --border: #e7dfd2;
-  --text: #2e2a24;
-  --muted: #6b6258;
-  --accent: #c8674f;
-  --accent-hover: #ad523e;
+  --border: #ded0f5;
+  --border-heavy: #c9affe;
+  --text: #352d46;
+  --muted: #71677f;
+  --accent: #8b5cf6;
+  --accent-hover: #6f46d6;
+  --primary: #5f3fb8;
+  --primary-hover: #4b2f99;
+  --mint: #a5d8dd;
+  --warning: #fbbf24;
   --danger: #9f2d2d;
 }
 
@@ -66,12 +71,12 @@ header {
 
 .language-switch .language-option[aria-pressed="true"] {
   background: var(--surface);
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(46, 42, 36, 0.14);
+  color: var(--accent-hover);
+  box-shadow: 3px 3px 0 var(--mint);
 }
 
 .language-switch .language-option:focus-visible {
-  outline: 3px solid rgba(200, 103, 79, 0.28);
+  outline: 3px solid rgba(139, 92, 246, 0.28);
   outline-offset: 1px;
 }
 
@@ -103,10 +108,10 @@ h1 {
 .card {
   margin: 18px 0;
   padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
+  border: 2px solid var(--border-heavy);
+  border-radius: 18px 13px 19px 12px;
   background: var(--surface);
-  box-shadow: 0 10px 30px rgba(46, 42, 36, 0.05);
+  box-shadow: 5px 5px 0 rgba(165, 216, 221, 0.7);
 }
 
 h2 {
@@ -131,7 +136,7 @@ textarea {
   width: 100%;
   padding: 11px 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 10px 7px 11px 7px;
   background: #fff;
   color: var(--text);
 }
@@ -139,7 +144,7 @@ textarea {
 input:focus,
 textarea:focus {
   border-color: var(--accent);
-  outline: 3px solid rgba(200, 103, 79, 0.14);
+  outline: 3px solid rgba(139, 92, 246, 0.14);
 }
 
 textarea {
@@ -163,8 +168,8 @@ a {
   margin-top: 18px;
   padding: 12px 14px;
   border-radius: 10px;
-  background: #f8eee9;
-  color: #60483f;
+  background: #f1fbfb;
+  color: #5f3fb8;
   font-size: 13px;
 }
 
@@ -180,9 +185,9 @@ a {
   justify-content: space-between;
   margin-bottom: 18px;
   padding: 13px 14px;
-  border: 1px solid #ecd8ce;
+  border: 1px solid #ded0f5;
   border-radius: 12px;
-  background: #fdf6f2;
+  background: #faf7ff;
 }
 
 .provider-name {
@@ -193,16 +198,16 @@ a {
 .agent-badge {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #f2e3dc;
-  color: #714b3f;
+  background: #eee7ff;
+  color: #5f3fb8;
   font-size: 11px;
   font-weight: 800;
 }
 
 .customization-card {
   padding: 0;
-  border-color: #ddc2b7;
-  background: linear-gradient(145deg, #fff 0%, #fff9f6 100%);
+  border-color: #c9affe;
+  background: linear-gradient(145deg, #fff 0%, #f7f3ff 100%);
   overflow: hidden;
 }
 
@@ -237,11 +242,11 @@ a {
 }
 
 .customization-summary:hover {
-  background: #fdf3ee;
+  background: #f7f3ff;
 }
 
 .customization-summary:focus-visible {
-  outline: 3px solid rgba(200, 103, 79, 0.28);
+  outline: 3px solid rgba(139, 92, 246, 0.28);
   outline-offset: -3px;
 }
 
@@ -264,7 +269,7 @@ a {
 
 .customization-content {
   padding: 19px 22px 22px;
-  border-top: 1px solid #ead8d0;
+  border-top: 1px solid #ded0f5;
 }
 
 .customization-intro {
@@ -289,10 +294,10 @@ a {
 .prompt-reminder {
   margin: 8px 0 10px;
   padding: 10px 12px;
-  border: 1px solid #e7b9a8;
+  border: 1px solid #c9affe;
   border-radius: 10px;
-  background: #fff2ec;
-  color: #60483f;
+  background: #fff8e1;
+  color: #5f3fb8;
   font-size: 13px;
   font-weight: 750;
 }
@@ -316,7 +321,7 @@ a {
 button {
   padding: 10px 15px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 10px 7px 11px 7px;
   background: #fff;
   color: var(--text);
   cursor: pointer;
@@ -329,12 +334,15 @@ button:hover {
 
 button.primary {
   border-color: var(--accent);
-  background: var(--accent);
+  background: var(--primary);
+  box-shadow: 4px 4px 0 var(--mint);
   color: #fff;
 }
 
 button.primary:hover {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
+  box-shadow: 2px 2px 0 var(--mint);
+  transform: translate(2px, 2px);
 }
 
 button.danger {

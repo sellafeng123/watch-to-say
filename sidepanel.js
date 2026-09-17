@@ -1163,9 +1163,13 @@ function renderPracticeTranscriptMarkup(text, highlights) {
 
 function updatePracticeStartButton() {
   const button = document.getElementById("startPracticeBtn");
+  const summary = document.getElementById("practiceSelectionCount");
   if (!button) return;
   const count = currentPracticeHighlights.length;
-  button.textContent = `本期表达练习 · 已选 ${count} 条`;
+  button.textContent = "开始内化练习";
+  if (summary) {
+    summary.textContent = `已选 ${count} 个重点`;
+  }
   button.disabled = count === 0;
   button.title = count ? "准备本期表达练习" : "先保存一个想练的表达";
 }

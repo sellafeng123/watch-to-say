@@ -22,7 +22,7 @@ test("manifest uses minimized install-time permissions", () => {
   assert.ok(!manifest.permissions.includes("activeTab"));
   assert.ok(manifest.host_permissions.includes("https://api.deepseek.com/*"));
   assert.equal(Object.hasOwn(manifest, "optional_host_permissions"), false);
-  assert.equal(manifest.version, "2.3.3");
+  assert.equal(manifest.version, "2.4.0");
 });
 
 test("release allowlist includes every declared Corpus Palace runtime module", () => {
@@ -480,7 +480,7 @@ test("notes filters preserve selected contrast and expose pressed state", () => 
   );
   assert.match(
     css,
-    /\.notes-filter \.enhance-btn\.active:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--accent-hover\);[^}]*color:\s*white;/,
+    /\.notes-filter \.enhance-btn\.active:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--primary-hover\);[^}]*color:\s*white;/,
   );
   assert.match(
     css,

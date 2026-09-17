@@ -17,6 +17,7 @@ explainer-video/
 skills/
 skills-lock.json
 .playwright-mcp/
+.superpowers/
 node_modules/
 dist/
 tmp/ielts-ocr-*.json
