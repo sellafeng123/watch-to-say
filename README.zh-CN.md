@@ -1,8 +1,8 @@
-# YouTube Digest
+# YouTube Digest to Corpus Palace
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-把每个 YouTube 视频变成一份可以深入学习的资料。YouTube Digest 把字幕、双语翻译、AI 概览、内容讲解和时间戳笔记放进同一个 Chrome 侧边栏，让你可以持续学习视频中的知识和语言，同时不丢失原视频上下文。
+把每个 YouTube 视频变成一份可以深入学习的资料。YouTube Digest to Corpus Palace 把字幕、双语翻译、AI 概览、内容讲解和时间戳笔记放进同一个 Chrome 侧边栏，让你可以持续学习视频中的知识和语言，同时不丢失原视频上下文。
 
 - 把零碎字幕变成清晰、可搜索的学习资料。
 - 查看原文、简体中文翻译，或中英双语对照字幕来学习语言。
@@ -11,14 +11,15 @@
 - 保存自动润色的时间戳笔记，方便之后复习。
 - 使用自己的 API Key，数据保存在本地 Chrome 中，不包含分析统计或行为追踪。
 
-YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitHub 安装。目前没有上架 Chrome 应用商店，不赠送 API 额度，也没有开发者运营的服务器。
+YouTube Digest to Corpus Palace 是一个需要自行提供 API Key 的开源项目，通过 GitHub 安装。目前没有上架 Chrome 应用商店，不赠送 API 额度，也没有开发者运营的服务器。
 
 点击查看演示和教学视频（小白友好）：[https://www.bilibili.com/video/BV1dnuq6dEak/](https://www.bilibili.com/video/BV1dnuq6dEak/)
 
-![YouTube Digest 双语演示](YouTube%20Digest%20demo%20bilingual.png)
+![YouTube Digest to Corpus Palace 双语演示](YouTube%20Digest%20demo%20bilingual.png)
 
-## v2.3.2 更新
+## v2.3.3 更新
 
+- Chrome、设置页、导出内容和说明文档中的产品名称已统一为 **YouTube Digest to Corpus Palace**。
 - 练习材料校验会保留已通过的表达，只针对失败项和具体失败原因定向重新生成。
 - 如果定向修复仍失败，错误提示会直接列出表达和未通过的规则。
 
@@ -91,9 +92,9 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 - 工作、日常对话和旅行可选择 **智能混合**、**仅我的题库** 或 **仅 DeepSeek**。智能混合会优先选择符合条件且未使用过的个人题目，只有需要新题时才调用 DeepSeek。
 - 公开仓库只有用于说明结构和测试的合成示例，不会作为 IELTS 内容提供给学习者。
 
-随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.3.2-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
+随附的季节性 IELTS PDF 可能包含第三方内容。其 OCR 题库保存在 `data/ielts-question-bank.local.json`，该文件会被 Git 忽略，也不会进入公开安装包。只有在你已审核并批准本地题库、且确认自己有权使用其中内容后，才运行 `npm run package:local`。该命令会验证题库，运行测试和公开发布检查，创建 `dist/youtube-digest-v2.3.3-local-with-question-bank.zip`，扫描归档输入中的常见凭证，并输出 SHA-256 摘要。`npm run package` 始终只创建不含该题库的公开 ZIP。
 
-安装本地包时，请把该 ZIP 解压到长期保留的文件夹，在 Chrome 的“加载已解压的扩展程序”中选择这个准确文件夹，并保持它不被移动。重新构建或替换解压文件后，请在 `chrome://extensions` 中为 YouTube Digest 点击“重新加载”，再刷新已打开的 YouTube 页面。
+安装本地包时，请把该 ZIP 解压到长期保留的文件夹，在 Chrome 的“加载已解压的扩展程序”中选择这个准确文件夹，并保持它不被移动。重新构建或替换解压文件后，请在 `chrome://extensions` 中为 YouTube Digest to Corpus Palace 点击“重新加载”，再刷新已打开的 YouTube 页面。
 
 扩展运行时不支持 PDF 导入，没有 PDF 渲染器，也没有 OCR 引擎。上面的 macOS OCR 工作流只是一次性的开发工具，不会进入任何扩展运行时。
 
@@ -113,7 +114,7 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 
 安装后请让这个文件夹留在原位。如果移动或删除它，Chrome 中加载的本地扩展会失效，需要从新的长期存放位置重新加载。
 
-不要把 API Key 发送到 AI 对话、源代码、截图或公开消息中。请你自己在 YouTube Digest 的设置页面直接填写。编程 Agent 可以告诉你填写位置，但不需要看到 Key。
+不要把 API Key 发送到 AI 对话、源代码、截图或公开消息中。请你自己在 YouTube Digest to Corpus Palace 的设置页面直接填写。编程 Agent 可以告诉你填写位置，但不需要看到 Key。
 
 ## 手动安装
 
@@ -126,13 +127,13 @@ YouTube Digest 是一个需要自行提供 API Key 的开源项目，通过 GitH
 5. 打开右上角的“开发者模式”。
 6. 点击“加载已解压的扩展程序”。
 7. 选择你刚才确定的那个准确项目文件夹，其中必须包含 `manifest.json`。
-8. 如果需要，可以在 Chrome 扩展菜单中固定 YouTube Digest。
+8. 如果需要，可以在 Chrome 扩展菜单中固定 YouTube Digest to Corpus Palace。
 
-这是一个本地加载的扩展，不会自动更新。下载新版或让 Agent 修改代码后，请在 `chrome://extensions` 中找到 YouTube Digest 并点击“重新加载”，然后刷新已经打开的 YouTube 页面。如果移动或删除源代码文件夹，Chrome 中加载的扩展会失效，需要从新的位置重新加载。
+这是一个本地加载的扩展，不会自动更新。下载新版或让 Agent 修改代码后，请在 `chrome://extensions` 中找到 YouTube Digest to Corpus Palace 并点击“重新加载”，然后刷新已经打开的 YouTube 页面。如果移动或删除源代码文件夹，Chrome 中加载的扩展会失效，需要从新的位置重新加载。
 
 ## 设置 API Key
 
-YouTube Digest 需要你在自己的服务账号中准备两个 Key：
+YouTube Digest to Corpus Palace 需要你在自己的服务账号中准备两个 Key：
 
 1. **Supadata API Key**，用于获取 YouTube 字幕。
 2. **DeepSeek API Key**，用于生成概览、讲解内容、翻译和自动润色笔记。
@@ -143,7 +144,7 @@ YouTube Digest 需要你在自己的服务账号中准备两个 Key：
 2. 创建账号并完成简短的新手引导。
 3. Supadata 会在新手引导过程中自动生成 API Key。
 4. 之后可以随时打开 [Supadata 控制台](https://dash.supadata.ai/)查找或管理 Key。
-5. 复制 Key，并粘贴到 YouTube Digest 设置中的 **Supadata API key**。
+5. 复制 Key，并粘贴到 YouTube Digest to Corpus Palace 设置中的 **Supadata API key**。
 
 如果页面流程发生变化，请查看 [Supadata 官方文档](https://docs.supadata.ai/)。
 
@@ -151,14 +152,14 @@ YouTube Digest 需要你在自己的服务账号中准备两个 Key：
 
 1. 打开 DeepSeek 官方 [API Keys 页面](https://platform.deepseek.com/api_keys)。
 2. 按照提示登录，或创建 DeepSeek 开放平台账号。
-3. 点击 **Create new API key**，填写容易识别的名称，例如 `YouTube Digest`，然后创建 Key。
+3. 点击 **Create new API key**，填写容易识别的名称，例如 `YouTube Digest to Corpus Palace`，然后创建 Key。
 4. 立即复制 Key。完整 Key 可能只会显示一次。
-5. 把 Key 粘贴到 YouTube Digest 设置中的 **DeepSeek API key**。
+5. 把 Key 粘贴到 YouTube Digest to Corpus Palace 设置中的 **DeepSeek API key**。
 6. 如果 DeepSeek 提示余额不足，请在 DeepSeek 开放平台账号中充值后再试。
 
 当前账号和接口说明请查看 [DeepSeek 官方 API 文档](https://api-docs.deepseek.com/)。
 
-在侧边栏中打开 **Settings**。你也可以在 `chrome://extensions` 的 YouTube Digest 卡片中打开扩展选项。Key 只能粘贴到这些设置输入框中。不要把 Key 发送到 AI 对话、项目文件、截图或公开消息中。
+在侧边栏中打开 **Settings**。你也可以在 `chrome://extensions` 的 YouTube Digest to Corpus Palace 卡片中打开扩展选项。Key 只能粘贴到这些设置输入框中。不要把 Key 发送到 AI 对话、项目文件、截图或公开消息中。
 
 发布版本只支持 DeepSeek V4 Flash：
 
@@ -167,14 +168,14 @@ Base URL: https://api.deepseek.com
 Model: deepseek-v4-flash
 ```
 
-YouTube Digest 会让所有 DeepSeek 请求使用非思考模式，以获得更快、更稳定的交互。设置中的接口地址和模型固定，只需要填写 DeepSeek API Key。如果想使用其他服务或模型，请在设置中复制安全的自定义 prompt，让编程 Agent 修改你自己的本地副本。不要把任何 API Key 放进 prompt 或对话。
+YouTube Digest to Corpus Palace 会让所有 DeepSeek 请求使用非思考模式，以获得更快、更稳定的交互。设置中的接口地址和模型固定，只需要填写 DeepSeek API Key。如果想使用其他服务或模型，请在设置中复制安全的自定义 prompt，让编程 Agent 修改你自己的本地副本。不要把任何 API Key 放进 prompt 或对话。
 
 API Key 和设置保存在你设备上的 Chrome 扩展本地存储中。发布包不会包含或使用 `config.js`。
 
-## 使用 YouTube Digest
+## 使用 YouTube Digest to Corpus Palace
 
 1. 打开一个有字幕的普通 YouTube 视频页面。
-2. 点击 YouTube Digest 扩展图标，打开侧边栏。
+2. 点击 YouTube Digest to Corpus Palace 扩展图标，打开侧边栏。
 3. 阅读带时间戳的字幕，或选择 **Original**、**中文**、**双语**。
 4. 打开 **Overview**，查看 AI 生成的章节和重点引用。
 5. 选中字幕，获取 AI 内容讲解。
@@ -184,7 +185,7 @@ API Key 和设置保存在你设备上的 Chrome 扩展本地存储中。发布�
 
 - Chrome 116 或更高版本。
 - 标准的 `youtube.com/watch` 视频页面。
-- Supadata 能够返回的原生字幕。YouTube Digest 会优先请求英文字幕，也可能显示其他可用的原生语言。
+- Supadata 能够返回的原生字幕。YouTube Digest to Corpus Palace 会优先请求英文字幕，也可能显示其他可用的原生语言。
 - 原文、简体中文和双语对照字幕。
 - AI 概览、选中文本讲解、翻译和自动润色笔记。
 - 本地笔记，以及最近字幕、概览和翻译的本地缓存。
@@ -192,7 +193,7 @@ API Key 和设置保存在你设备上的 Chrome 扩展本地存储中。发布�
 
 Shorts、直播、私密视频、受访问限制的视频，以及没有原生字幕的视频可能无法使用。目前没有测试 Firefox、Safari、移动浏览器或其他 Chromium 浏览器。
 
-YouTube Digest 强制使用 Supadata 的 `mode=native`，不会在没有原生字幕时请求 AI 生成转录，也不会在本地转录音频。
+YouTube Digest to Corpus Palace 强制使用 Supadata 的 `mode=native`，不会在没有原生字幕时请求 AI 生成转录，也不会在本地转录音频。
 
 ## Supadata 免费额度和请求成本
 
@@ -201,12 +202,12 @@ YouTube Digest 强制使用 Supadata 的 `mode=native`，不会在没有原生�
 [Supadata 字幕接口文档](https://docs.supadata.ai/get-transcript)说明了不同模式的计费方式：
 
 - 获取一次原生字幕消耗 **1 credit**，与视频时长无关。
-- AI 生成字幕每分钟消耗 **2 credits**。YouTube Digest 不会使用这条路径，因为它强制使用 `mode=native`。
+- AI 生成字幕每分钟消耗 **2 credits**。YouTube Digest to Corpus Palace 不会使用这条路径，因为它强制使用 `mode=native`。
 - 如果没有可用原生字幕并返回 HTTP `206`，仍会消耗 **1 credit**。
 
 按照当前只获取原生字幕的方式，如果每次请求都成功，免费版每月大约可以查询 100 个视频。重试和没有字幕的查询也会消耗额度，所以实际成功数量可能更少。
 
-DeepSeek 的额度与 Supadata 分开计算。YouTube Digest 不收款，也不转售 API 服务。建议为两个账号设置消费上限并定期查看用量。
+DeepSeek 的额度与 Supadata 分开计算。YouTube Digest to Corpus Palace 不收款，也不转售 API 服务。建议为两个账号设置消费上限并定期查看用量。
 
 ## DeepSeek V4 Flash 价格
 
@@ -231,7 +232,7 @@ DeepSeek 的额度与 Supadata 分开计算。YouTube Digest 不收款，也不�
 
 这是一个个人 Remix 项目，不接受上游 Issue 或 Pull Request。如果功能出错，或者你想增加新功能，请下载或 Fork 自己的副本，再让你的编程 Agent 帮你修复、改造和个性化。
 
-YouTube Digest 使用原生 HTML、CSS 和 JavaScript，没有构建步骤，很适合用编程 Agent 做个人项目。你可以尝试：
+YouTube Digest to Corpus Palace 使用原生 HTML、CSS 和 JavaScript，没有构建步骤，很适合用编程 Agent 做个人项目。你可以尝试：
 
 - 增加更多翻译语言，并让每个人选择自己的学习语言。
 - 为课程、访谈、教程、测评或研究视频增加自定义总结模板。
@@ -243,24 +244,24 @@ YouTube Digest 使用原生 HTML、CSS 和 JavaScript，没有构建步骤，很
 
 请让 Agent 保留用户自带 API Key 的模式，不要把秘密写入源代码，并运行下方检查。分享自己的版本前，也要在真实视频上测试。
 
-如果想使用其他 AI 服务或模型，请先在编程 Agent 中打开 Chrome 通过“加载已解压的扩展程序”使用的那个准确的 YouTube Digest 项目文件夹。然后打开 YouTube Digest 设置并点击 **Copy customization prompt**。发送前替换 `[PROVIDER]` 和 `[MODEL]`，但不要加入任何 API Key。Agent 完成本地代码修改后，请你自己在它指出的设置位置填写 Key。
+如果想使用其他 AI 服务或模型，请先在编程 Agent 中打开 Chrome 通过“加载已解压的扩展程序”使用的那个准确的 YouTube Digest to Corpus Palace 项目文件夹。然后打开 YouTube Digest to Corpus Palace 设置并点击 **Copy customization prompt**。发送前替换 `[PROVIDER]` 和 `[MODEL]`，但不要加入任何 API Key。Agent 完成本地代码修改后，请你自己在它指出的设置位置填写 Key。
 
 ## 隐私和数据流向
 
-YouTube Digest 会直接从扩展向服务商发送请求：
+YouTube Digest to Corpus Palace 会直接从扩展向服务商发送请求：
 
 1. 把标准化的 YouTube 视频地址发送给 Supadata，用于获取原生字幕。
 2. 当你使用 AI 功能时，把字幕和相关视频信息发送给 DeepSeek。
 3. 翻译或讲解等功能只发送当前需要的内容，例如选中的文本和上下文，或少量字幕分段。
 4. API Key、设置、笔记和最近缓存保存在 Chrome 本地。
 
-YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supadata 和 DeepSeek 仍会按照各自的条款和隐私政策处理数据。详情请查看 [PRIVACY.md](PRIVACY.md)。
+YouTube Digest to Corpus Palace 没有账号系统、广告、分析统计或行为追踪。Supadata 和 DeepSeek 仍会按照各自的条款和隐私政策处理数据。详情请查看 [PRIVACY.md](PRIVACY.md)。
 
 ## 常见问题
 
 ### YouTube 视频页面没有显示 Digest 按钮
 
-- 在 `chrome://extensions` 中找到 YouTube Digest，点击“重新加载”，然后刷新 YouTube 页面。
+- 在 `chrome://extensions` 中找到 YouTube Digest to Corpus Palace，点击“重新加载”，然后刷新 YouTube 页面。
 - 确认当前页面是标准 `https://www.youtube.com/watch?...` 页面，而不是 Shorts、嵌入页面或直播页面。
 - 当前版本会在 YouTube 响应式操作栏变化时自动重新定位按钮。页面加载完成后可以稍等片刻。
 - 如果你使用的是较早下载的版本，可以先横向调整一次 YouTube 窗口宽度让按钮出现，然后下载最新版，这样之后不再需要调整窗口。
@@ -269,11 +270,11 @@ YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supad
 ### 侧边栏无法打开
 
 - 确认你打开的是标准 `https://www.youtube.com/watch?...` 页面。
-- 在 `chrome://extensions` 中确认 YouTube Digest 已启用，并点击“重新加载”。
+- 在 `chrome://extensions` 中确认 YouTube Digest to Corpus Palace 已启用，并点击“重新加载”。
 - 重新加载扩展后，刷新 YouTube 页面。
 - 如果问题仍然存在，让你的编程 Agent 检查扩展。
 
-### YouTube Digest 提示需要设置
+### YouTube Digest to Corpus Palace 提示需要设置
 
 - 打开 **Settings**，保存 Supadata Key 和 DeepSeek Key。
 - 发布版本固定使用 DeepSeek V4 Flash，没有需要填写的 Base URL 或 Model 字段。
@@ -285,7 +286,7 @@ YouTube Digest 没有账号系统、广告、分析统计或行为追踪。Supad
 - 检查 Supadata Key、剩余额度、限速和账号状态。
 - 没有字幕的查询和手动重试也可能消耗额度。
 
-YouTube Digest 不会自动改用 AI 生成字幕。
+YouTube Digest to Corpus Palace 不会自动改用 AI 生成字幕。
 
 ### AI 请求失败
 

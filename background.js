@@ -107,7 +107,7 @@ async function requestAiCompletion({
   const settings = await getSettings();
   if (!settings.aiApiKey) {
     const error = new Error(
-      "DeepSeek API key not configured. Open YouTube Digest Settings.",
+      "DeepSeek API key not configured. Open YouTube Digest to Corpus Palace Settings.",
     );
     error.code = "NO_AI_KEY";
     throw error;
@@ -1271,7 +1271,7 @@ async function handleFetchTranscript(videoId) {
       return {
         success: false,
         error: "NO_SUPADATA_KEY",
-        message: "Supadata API key not configured. Open YouTube Digest Settings.",
+        message: "Supadata API key not configured. Open YouTube Digest to Corpus Palace Settings.",
       };
     }
 
@@ -1315,7 +1315,7 @@ async function handleFetchTranscript(videoId) {
         return {
           success: false,
           error: "INVALID_SUPADATA_KEY",
-          message: "Your Supadata API key is invalid. Open YouTube Digest Settings.",
+          message: "Your Supadata API key is invalid. Open YouTube Digest to Corpus Palace Settings.",
         };
       }
       if (response.status === 404) {
@@ -2015,7 +2015,7 @@ async function handleAnalyzeTranscript(
       return {
         success: false,
         error: "NO_AI_KEY",
-        message: "DeepSeek API key not configured. Open YouTube Digest Settings.",
+        message: "DeepSeek API key not configured. Open YouTube Digest to Corpus Palace Settings.",
       };
     }
 
@@ -2332,7 +2332,7 @@ async function handleContextualGloss(selectionRequest, { forceRefresh = false } 
     return {
       success: false,
       error: "NO_AI_KEY",
-      message: "DeepSeek API key not configured. Open YouTube Digest Settings.",
+      message: "DeepSeek API key not configured. Open YouTube Digest to Corpus Palace Settings.",
     };
   }
 

@@ -2,11 +2,11 @@
 
 Effective: July 28, 2026
 
-YouTube Digest is a GitHub-only, bring-your-own-key Chrome extension. It has no YouTube Digest account, developer-operated backend, analytics, advertising, or telemetry.
+YouTube Digest to Corpus Palace is a GitHub-only, bring-your-own-key Chrome extension. It has no YouTube Digest to Corpus Palace account, developer-operated backend, analytics, advertising, or telemetry.
 
 ## Data the extension handles
 
-Depending on the feature you use, YouTube Digest handles:
+Depending on the feature you use, YouTube Digest to Corpus Palace handles:
 
 - the canonical URL and video ID of the active YouTube video;
 - transcript text and timestamps;
@@ -26,7 +26,7 @@ Depending on the feature you use, YouTube Digest handles:
 
 ### Supadata
 
-YouTube Digest sends the canonical YouTube video URL to `https://api.supadata.ai` with your Supadata API key. Supadata returns the transcript and timestamps. A Supadata key is required for transcript retrieval.
+YouTube Digest to Corpus Palace sends the canonical YouTube video URL to `https://api.supadata.ai` with your Supadata API key. Supadata returns the transcript and timestamps. A Supadata key is required for transcript retrieval.
 
 ### DeepSeek
 
@@ -42,7 +42,7 @@ The published version sends AI feature content to DeepSeek V4 Flash at `https://
 
 The endpoint and `deepseek-v4-flash` model are fixed in the published Settings page. You provide one DeepSeek API key. To use another provider or model, you must adapt your own local source copy and its permissions. The Settings page provides a coding-agent prompt for that purpose and warns you never to include an API key in the prompt or chat.
 
-Requests go directly from the extension to Supadata or DeepSeek. They are authenticated with the keys you supply. YouTube Digest's developer does not proxy or receive these requests.
+Requests go directly from the extension to Supadata or DeepSeek. They are authenticated with the keys you supply. YouTube Digest to Corpus Palace's developer does not proxy or receive these requests.
 
 ### Obsidian
 
@@ -58,7 +58,7 @@ Those services process data under their own terms, privacy policies, retention p
 
 ## Local storage and retention
 
-YouTube Digest uses Chrome's local extension storage, not a YouTube Digest cloud service.
+YouTube Digest to Corpus Palace uses Chrome's local extension storage, not a YouTube Digest to Corpus Palace cloud service.
 
 - Supadata and DeepSeek settings and API keys remain on the device in Chrome's extension storage.
 - Saved notes remain until you delete them or remove/clear the extension's data. The extension keeps up to 100 notes.
@@ -76,7 +76,7 @@ Chrome extension storage is not a password vault. Anyone with sufficient access 
 
 To remove data:
 
-- delete individual saved notes in YouTube Digest;
+- delete individual saved notes in YouTube Digest to Corpus Palace;
 - use the Options page to clear cached digests, delete all notes, or reset all extension data;
 - remove the extension or clear its stored data from Chrome to delete all local settings, keys, notes, and cache entries; and
 - revoke keys in the Supadata or DeepSeek dashboard to stop their future use.
@@ -89,9 +89,9 @@ The extension has no runtime scanned-PDF import, PDF renderer, or OCR engine. An
 
 ## Permissions
 
-YouTube Digest uses Chrome permissions for these purposes:
+YouTube Digest to Corpus Palace uses Chrome permissions for these purposes:
 
-- `sidePanel`: display the YouTube Digest interface beside YouTube.
+- `sidePanel`: display the YouTube Digest to Corpus Palace interface beside YouTube.
 - `storage`: store settings, keys, notes, and cached results locally.
 - `tabs`: identify and interact with the active YouTube tab.
 - `scripting`: coordinate the extension's YouTube page controls.
@@ -99,11 +99,11 @@ YouTube Digest uses Chrome permissions for these purposes:
 - Supadata host access: retrieve transcripts.
 - DeepSeek host access: provide AI overviews, explanations, translation, and note polishing through DeepSeek V4 Flash.
 
-YouTube Digest does not use these permissions to monitor general browsing activity.
+YouTube Digest to Corpus Palace does not use these permissions to monitor general browsing activity.
 
 ## No sale or advertising use
 
-YouTube Digest does not sell personal information, build advertising profiles, or share data with data brokers. It does not include analytics SDKs.
+YouTube Digest to Corpus Palace does not sell personal information, build advertising profiles, or share data with data brokers. It does not include analytics SDKs.
 
 ## Changes
 

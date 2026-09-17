@@ -183,7 +183,8 @@ test("refuses contextual gloss before fetching a transcript when no DeepSeek key
   assert.deepEqual(JSON.parse(JSON.stringify(result)), {
     success: false,
     error: "NO_AI_KEY",
-    message: "DeepSeek API key not configured. Open YouTube Digest Settings.",
+    message:
+      "DeepSeek API key not configured. Open YouTube Digest to Corpus Palace Settings.",
   });
 });
 
