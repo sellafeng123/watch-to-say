@@ -2,20 +2,57 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-把每个 YouTube 视频变成一份可以深入学习的资料。YouTube Digest to Corpus Palace 把字幕、双语翻译、AI 概览、内容讲解和时间戳笔记放进同一个 Chrome 侧边栏，让你可以持续学习视频中的知识和语言，同时不丢失原视频上下文。
+把每个 YouTube 视频变成一份可以深入学习的资料。再把 YouTube 输入变成属于自己的英语口语语料宫殿：这款 Chrome 侧边栏插件让每条表达始终留在原视频语境中，带你依次完成语境理解、听辨回想、表达内化、口语输出和 Obsidian 长期沉淀。
 
-- 把零碎字幕变成清晰、可搜索的学习资料。
-- 查看原文、简体中文翻译，或中英双语对照字幕来学习语言。
-- 通过 AI 概览、章节、重点引用和选中文本讲解建立系统理解。
-- 点击字幕、概览或笔记中的时间戳，快速跳转到对应位置。
-- 保存自动润色的时间戳笔记，方便之后复习。
-- 使用自己的 API Key，数据保存在本地 Chrome 中，不包含分析统计或行为追踪。
+![YouTube 视频与 Corpus Palace Transcript 侧边栏](docs/assets/readme/hero.png)
 
-YouTube Digest to Corpus Palace 是一个需要自行提供 API Key 的开源项目，通过 GitHub 安装。目前没有上架 Chrome 应用商店，不赠送 API 额度，也没有开发者运营的服务器。
+## 从视频输入到口语输出
 
-点击查看演示和教学视频（小白友好）：[https://www.bilibili.com/video/BV1dnuq6dEak/](https://www.bilibili.com/video/BV1dnuq6dEak/)
+1. **在语境中观看。** 查看可搜索的原文、中文或双语字幕，点击时间戳即可回到对应视频位置。
+2. **高亮真正想学的部分。** 在 Transcript 里直接框选单词、词伙或句型，生成可编辑的 **AI 语境双解卡**。
+3. **先内化，再输出。** 先做听辨回想，再通过替换和自主造两句，把每条表达真正练熟。
+4. **用整组表达完成口语。** 所有表达都标记为“会”之后，才进入雅思或主题口语题；参考答案会尽量自然覆盖全部高亮表达，并显示实际覆盖结果。
+5. **沉淀自己的 Corpus Palace。** 同一视频的表达统一追加到一篇 Obsidian 视频笔记，用清晰表格保存原句语境、学习笔记、搭配与同义改写。
 
-![YouTube Digest to Corpus Palace 双语演示](YouTube%20Digest%20demo%20bilingual.png)
+API Key 和学习数据保存在 Chrome 本地。插件不包含分析统计、行为追踪、赠送 API 额度或开发者运营的服务器。目前通过 GitHub 本地安装，尚未上架 Chrome 应用商店。
+
+## 功能展示
+
+### 双语字幕与视频导航
+
+在原文、中文和双语字幕之间切换，搜索整段 Transcript、跟随播放，并从章节或重点引用一键跳回对应视频位置。
+
+![原文、中文、双语字幕、内容概览与重点引用](docs/assets/readme/bilingual-transcript-navigation.jpeg)
+
+### AI 语境双解卡
+
+DeepSeek 会根据真实字幕上下文，生成句中英汉释义、词性、口语使用频率、搭配、句型、同义改写和同语义扩展。保存前可以编辑学习条目；再次点击已保存的高亮，会直接打开缓存结果，不重复请求。
+
+![AI 语境双解卡与可编辑学习条目](docs/assets/readme/ai-contextual-gloss.jpeg)
+
+### 听辨回想与表达内化
+
+从当前视频里自由选择任意数量的高亮表达。先回想并揭晓原句，再针对单词、词伙或句型完成替换训练和两句自主造句。只有全部标记为“会”，才会解锁口语输出。
+
+![听辨回想与表达内化完整流程](docs/assets/readme/listening-internalization.jpeg)
+
+### 雅思与主题口语输出
+
+每次用整组表达练习一道口语题。安装已审核的本地题库后，雅思模式会从真实题库筛题；其他场景可以使用自己的题库或 DeepSeek。参考答案会尽量融入全部高亮表达，并显示经过文本校验的覆盖率。
+
+![雅思口语题、高亮表达覆盖、参考答案与完成总结](docs/assets/readme/ielts-speaking-output.jpeg)
+
+### Obsidian 语料总表
+
+同一视频的表达统一追加到一篇 Markdown 笔记。三列表格把重点表达、带时间戳的原句语境和结构化学习笔记放在一起，避免拆成大量零散页面。
+
+![Obsidian 语料总表：重点表达、原句语境与学习笔记](docs/assets/readme/obsidian-corpus-table.png)
+
+### 口语题库导入与管理
+
+粘贴题库文本，选择适用场景，让 DeepSeek 识别题目结构；检查预览后，只保存你确认过的结构化题目。
+
+![口语题库导入与管理设置](docs/assets/readme/question-bank-management.png)
 
 ## v2.4.3 更新
 
@@ -121,7 +158,7 @@ YouTube Digest to Corpus Palace 是一个需要自行提供 API Key 的开源项
 
 你不需要看懂代码，也不需要会使用命令行。把下面这段话发送给你的编程 Agent：
 
-> 请把这个项目下载或克隆到我选择的长期保留文件夹，告诉我准确的完整路径，并让 Chrome“加载已解压的扩展程序”使用同一个文件夹。如果我在第一次安装时需要位置建议，可以推荐 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`，但不要假设我一定使用这些路径。请用简单易懂的语言一步一步指导我完成安装和配置。https://github.com/zarazhangrui/youtube-digest
+> 请把这个项目下载或克隆到我选择的长期保留文件夹，告诉我准确的完整路径，并让 Chrome“加载已解压的扩展程序”使用同一个文件夹。如果我在第一次安装时需要位置建议，可以推荐 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`，但不要假设我一定使用这些路径。请用简单易懂的语言一步一步指导我完成安装和配置。https://github.com/sellafeng123/youtube-digest-to-corpus-palace
 
 你的 Agent 应该帮你：
 
@@ -139,7 +176,7 @@ YouTube Digest to Corpus Palace 是一个需要自行提供 API Key 的开源项
 
 如果你想自己操作：
 
-1. 打开 [github.com/zarazhangrui/youtube-digest](https://github.com/zarazhangrui/youtube-digest)。
+1. 打开 [github.com/sellafeng123/youtube-digest-to-corpus-palace](https://github.com/sellafeng123/youtube-digest-to-corpus-palace)。
 2. 点击 **Code**，再选择 **Download ZIP**。
 3. 选择一个长期保留的文件夹，并把项目解压到这里。可选建议是 macOS 或 Linux 上的 `~/Documents/youtube-digest`，或 Windows 上的 `%USERPROFILE%\Documents\youtube-digest`。你也可以使用其他文件夹。
 4. 在 Chrome 地址栏打开 `chrome://extensions`。

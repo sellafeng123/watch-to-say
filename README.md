@@ -2,18 +2,57 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Turn every YouTube video into a resource for deep learning. YouTube Digest to Corpus Palace brings transcripts, bilingual translation, AI overviews, explanations, and timestamped notes into one Chrome side panel, so you can study ideas and language without losing your place.
+Turn every YouTube video into a resource for deep learning. Turn YouTube input into a personal English-speaking corpus with a Chrome side panel that keeps every expression inside its original video context, then guides you through contextual understanding, listening recall, expression internalization, speaking output, and long-term organization in Obsidian.
 
-- Turn captions into a readable, searchable learning resource.
-- Learn languages with the original transcript, a Simplified Chinese translation, or an aligned bilingual view.
-- Build understanding with an AI overview, chapters, key quotes, and selected-text explanations.
-- Navigate long videos by clicking timestamps in the transcript, overview, or notes.
-- Save polished timestamped notes for later study.
-- Keep control of your data with your own API keys, local Chrome storage, and no analytics or telemetry.
+![YouTube video with the Corpus Palace transcript side panel](docs/assets/readme/hero.png)
 
-YouTube Digest to Corpus Palace is a bring-your-own-key project installed locally from GitHub. It is not available through the Chrome Web Store, does not include API credits, and does not run a developer-operated server.
+## From video input to speaking output
 
-![YouTube Digest to Corpus Palace demo](YouTube%20Digest%20demo.png)
+1. **Watch with context.** Read searchable original, Chinese, or aligned bilingual subtitles and jump to any moment from its timestamp.
+2. **Highlight what you want to learn.** Select a word, chunk, or sentence frame directly in Transcript and generate an editable **AI contextual bilingual gloss**.
+3. **Internalize before output.** Complete listening recall first, then practice substitutions and create two sentences for every selected expression.
+4. **Speak with the whole set.** After every expression is marked as mastered, answer an IELTS or topic-based speaking question. The reference answer attempts to use all highlighted expressions and reports verified coverage.
+5. **Build your Corpus Palace.** Append expressions from the same video to one readable Obsidian table with timestamped context, learning notes, collocations, and paraphrases.
+
+Your API keys and learning data stay in local Chrome storage. The extension has no analytics, telemetry, included API credits, or developer-operated server. It is installed locally from GitHub and is not currently available in the Chrome Web Store.
+
+## Product tour
+
+### Bilingual transcript and video navigation
+
+Switch between original, Chinese, and bilingual subtitles, search the full transcript, follow playback, and jump from chapters or key quotes to the corresponding video moment.
+
+![Original, Chinese, bilingual transcript, overview, and key quote views](docs/assets/readme/bilingual-transcript-navigation.jpeg)
+
+### AI contextual bilingual gloss
+
+DeepSeek explains the selected expression in its actual subtitle context: in-sentence English and Chinese meaning, part of speech, spoken frequency, collocations, sentence frames, paraphrases, and related expressions. Edit the learning entry before saving it; clicking a saved highlight reopens the cached gloss without another request.
+
+![AI contextual bilingual gloss and editable learning entry](docs/assets/readme/ai-contextual-gloss.jpeg)
+
+### Listening recall and expression internalization
+
+Choose any number of highlighted expressions from the current video. Recall the source sentence before revealing it, then internalize each word, chunk, or sentence frame through substitution and two original sentences. Speaking remains locked until every selected expression is marked as mastered.
+
+![Listening recall and expression internalization flow](docs/assets/readme/listening-internalization.jpeg)
+
+### IELTS and topic-based speaking output
+
+Practice one whole-set speaking question at a time. IELTS mode draws from an approved local question bank when one is installed; other profiles can use a saved learner bank or DeepSeek. Reference answers aim to incorporate every highlighted expression and show verified coverage.
+
+![IELTS speaking question, expression coverage, reference answer, and completion summary](docs/assets/readme/ielts-speaking-output.jpeg)
+
+### Obsidian corpus table
+
+Entries from one video append to one Markdown note. The three-column table keeps the expression, timestamped source context, and structured learning notes readable together instead of scattering them across separate pages.
+
+![Obsidian corpus table with expression, context, and learning notes](docs/assets/readme/obsidian-corpus-table.png)
+
+### Speaking question-bank management
+
+Paste question-bank text, choose the profiles that may use it, let DeepSeek recognize the structure, review the preview, and save only the structured questions you approve.
+
+![Speaking question-bank import and management settings](docs/assets/readme/question-bank-management.png)
 
 ## New in v2.4.3
 
@@ -119,7 +158,7 @@ The extension has no runtime PDF import, PDF renderer, or OCR engine. The macOS 
 
 You do not need to understand the code or use the command line. Send this message to your coding agent:
 
-> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/zarazhangrui/youtube-digest
+> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/sellafeng123/youtube-digest-to-corpus-palace
 
 Your agent should:
 
@@ -137,7 +176,7 @@ Never paste an API key into an AI chat, source file, screenshot, or public messa
 
 If you prefer to do it yourself:
 
-1. Open [github.com/zarazhangrui/youtube-digest](https://github.com/zarazhangrui/youtube-digest).
+1. Open [github.com/sellafeng123/youtube-digest-to-corpus-palace](https://github.com/sellafeng123/youtube-digest-to-corpus-palace).
 2. Choose **Code**, then **Download ZIP**.
 3. Choose a permanent folder and unzip the project there. Optional suggestions are `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows. You may use a different folder.
 4. In Chrome, open `chrome://extensions`.
