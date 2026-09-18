@@ -22,7 +22,7 @@ test("manifest uses minimized install-time permissions", () => {
   assert.ok(!manifest.permissions.includes("activeTab"));
   assert.ok(manifest.host_permissions.includes("https://api.deepseek.com/*"));
   assert.equal(Object.hasOwn(manifest, "optional_host_permissions"), false);
-  assert.equal(manifest.version, "2.4.2");
+  assert.equal(manifest.version, "2.4.3");
 });
 
 test("release allowlist includes every declared Corpus Palace runtime module", () => {
@@ -42,9 +42,18 @@ test("release allowlist includes every declared Corpus Palace runtime module", (
 test("the supplied Corpus Palace PNG is the single shared logo source", () => {
   const css = read("sidepanel.css");
   const releaseCheck = read("scripts/check-release.sh");
+  const logoFiles = [
+    "icons/corpus-palace-logo.png",
+    "icons/icon16.png",
+    "icons/icon48.png",
+    "icons/icon128.png",
+  ];
 
   assert.match(css, /url\("icons\/corpus-palace-logo\.png"\)/);
-  assert.ok(fs.existsSync(path.join(root, "icons/corpus-palace-logo.png")));
+  for (const file of logoFiles) {
+    const png = fs.readFileSync(path.join(root, file));
+    assert.ok([4, 6].includes(png[25]), `${file} must keep an alpha channel`);
+  }
   assert.ok(releaseCheck.includes('"icons/corpus-palace-logo.png"'));
   assert.equal(fs.existsSync(path.join(root, "icons/corpus-palace-logo.svg")), false);
 });
