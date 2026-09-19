@@ -371,6 +371,7 @@ test("release copy documents current scope without em dashes", () => {
   );
 
   const optionsPage = read("options.html");
+  const sidepanelPage = read("sidepanel.html");
   const optionsStyles = read("options.css");
   const optionsScript = read("options.js");
   assert.match(optionsPage, /dash\.supadata\.ai\/auth\/sign-up/i);
@@ -403,6 +404,12 @@ test("release copy documents current scope without em dashes", () => {
   assert.match(optionsScript, /clipboard\.writeText/);
   assert.match(optionsScript, /Edited prompt copied\./);
   assert.match(optionsScript, /migration\.migrated[\s\S]*storage\.set/);
+  assert.match(sidepanelPage, /Watch it\. Make it yours\. Say it\./);
+  assert.match(
+    sidepanelPage,
+    /Open a YouTube video to turn useful expressions into English\s+you can\s+actually say\./,
+  );
+  assert.doesNotMatch(sidepanelPage, /Ready to Digest|AI-powered digest/);
 
   const customizationPrompt = `Customize this local WatchToSay workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is WatchToSay. If verification fails, stop and ask me to open the extracted WatchToSay project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.`;
   assert.ok(optionsPage.includes(`>${customizationPrompt}</textarea>`));
