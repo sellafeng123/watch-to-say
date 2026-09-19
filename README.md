@@ -56,19 +56,7 @@ Paste question-bank text, choose the profiles that may use it, let DeepSeek reco
 
 ## New in v2.4.3
 
-- Replaced the refined logo with its transparent-background PNG source across Chrome, the side panel, and release packages.
-
-## New in v2.4.2
-
-- Updated every extension surface and package to the refined Corpus Palace logo supplied by the project owner.
-
-## New in v2.4.1
-
-- Chrome, the side-panel empty state, and release packages now use the supplied Corpus Palace PNG as their single shared logo source.
-
-## New in v2.4.0
-
-- A new Corpus Palace notebook logo carries the lavender-and-mint visual identity across Chrome and the extension's empty state.
+- The transparent-background Corpus Palace notebook logo now carries the lavender-and-mint identity across Chrome, the side panel, and release packages.
 - The side panel now uses a lavender journal workspace, bordered transcript cards, mint expression highlights, and deep-purple primary actions.
 - Transcript practice now opens from a clearer two-part launcher: a dashed selection summary followed by a dedicated **Start internalization practice** button.
 - Settings use the same hand-drawn card shapes, lavender structure, mint offset shadows, and amber reserved for warnings.
