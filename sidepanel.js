@@ -1,7 +1,7 @@
 /**
  * SIDE PANEL LOGIC
  *
- * Handles the UI for YouTube Digest: video detection, transcript analysis,
+ * Handles the UI for WatchToSay: video detection, transcript analysis,
  * rendering results, and export features.
  */
 
@@ -496,7 +496,7 @@ async function checkCurrentTab() {
     });
     const tab = tabs[0] || null;
 
-    debugLog("[YouTube Digest Panel] Found tab:", tab?.id, tab?.url);
+    debugLog("[WatchToSay Panel] Found tab:", tab?.id, tab?.url);
 
     if (!tab?.url) {
       showState("welcome");
@@ -522,7 +522,7 @@ async function checkCurrentTab() {
           action: "relayToContent",
           payload: { action: "getVideoInfo" },
         });
-        debugLog("[YouTube Digest Panel] getVideoInfo result:", result);
+        debugLog("[WatchToSay Panel] getVideoInfo result:", result);
         if (result.success && result.response) {
           currentVideoTitle = result.response.title || "";
           currentChannelName = result.response.channelName || "";
@@ -530,7 +530,7 @@ async function checkCurrentTab() {
           currentVideoDuration = result.response.duration || 0;
         }
       } catch (e) {
-        console.error("[YouTube Digest Panel] getVideoInfo error:", e);
+        console.error("[WatchToSay Panel] getVideoInfo error:", e);
         currentVideoTitle = "";
         currentChannelName = "";
         currentVideoDescription = "";
@@ -689,7 +689,7 @@ async function startDigest(videoId, videoUrl) {
     if (transcriptResult.error === "NO_SUPADATA_KEY") {
       showError(
         "API key missing",
-        "Add your Supadata API key in YouTube Digest to Corpus Palace Settings.",
+        "Add your Supadata API key in WatchToSay Settings.",
       );
       return;
     }
@@ -811,7 +811,7 @@ async function translateInterfaceSegments(surface, segments, rerender) {
           videoTitle: currentVideoTitle,
         });
       } catch (error) {
-        console.error("[YouTube Digest] Interface batch error:", error);
+        console.error("[WatchToSay] Interface batch error:", error);
         result = { success: false, error: error.message };
       }
       if (
@@ -838,7 +838,7 @@ async function translateInterfaceSegments(surface, segments, rerender) {
       await updateCache();
     }
   } catch (error) {
-    console.error("[YouTube Digest] Interface translation error:", error);
+    console.error("[WatchToSay] Interface translation error:", error);
     missing.forEach((segment) =>
       interfaceTranslationFailures.add(segment.cacheKey),
     );
@@ -921,7 +921,7 @@ function renderAnalysisResults(analysis) {
     `;
     li.addEventListener("click", () => {
       debugLog(
-        "[YouTube Digest Panel] Chapter clicked:",
+        "[WatchToSay Panel] Chapter clicked:",
         chapter.timestamp,
         chapter.timestampSeconds,
       );
@@ -952,7 +952,7 @@ function renderAnalysisResults(analysis) {
     `;
     div.addEventListener("click", () => {
       debugLog(
-        "[YouTube Digest Panel] Quote clicked:",
+        "[WatchToSay Panel] Quote clicked:",
         quote.timestamp,
         quote.timestampSeconds,
       );
@@ -1020,7 +1020,7 @@ async function saveQuoteAsNote(quote, btn) {
       // Refresh notes list if on Notes tab
       loadNotes(currentVideoId);
     } else {
-      console.error("[YouTube Digest] Save quote as note failed:", result.error);
+      console.error("[WatchToSay] Save quote as note failed:", result.error);
       btn.textContent = "Error";
       setTimeout(() => {
         btn.textContent = originalText;
@@ -1028,7 +1028,7 @@ async function saveQuoteAsNote(quote, btn) {
       }, 1500);
     }
   } catch (error) {
-    console.error("[YouTube Digest] Save quote as note error:", error);
+    console.error("[WatchToSay] Save quote as note error:", error);
     btn.textContent = "Error";
     setTimeout(() => {
       btn.textContent = originalText;
@@ -1646,7 +1646,7 @@ function exportTranscript() {
 
   exportText += `TRANSCRIPT:\n\n${transcriptContent}\n`;
   exportText += `\n${"—".repeat(60)}\n`;
-  exportText += `Exported by YouTube Digest to Corpus Palace\n`;
+  exportText += `Exported by WatchToSay\n`;
 
   const filename = `${sanitizeFilename(currentVideoTitle)}-transcript.txt`;
   downloadTextFile(exportText, filename);
@@ -1703,7 +1703,7 @@ function showConfigError(configStatus) {
   showState("error");
   document.getElementById("errorTitle").textContent = "API Keys Missing";
   document.getElementById("errorMessage").textContent =
-    `Add your ${missingKeys.join(" and ")} API key${missingKeys.length === 1 ? "" : "s"} in YouTube Digest to Corpus Palace Settings.`;
+    `Add your ${missingKeys.join(" and ")} API key${missingKeys.length === 1 ? "" : "s"} in WatchToSay Settings.`;
   document.getElementById("errorBtn").textContent = "Open Settings";
   errorAction = () => chrome.runtime.sendMessage({ action: "openOptions" });
 }
@@ -1822,7 +1822,7 @@ async function triggerAnalysis() {
     // Save to cache now that we have analysis
     await saveToCache(currentVideoId);
   } catch (error) {
-    console.error("[YouTube Digest Panel] Analysis error:", error);
+    console.error("[WatchToSay Panel] Analysis error:", error);
     if (chapterList)
       chapterList.innerHTML = `<li class="chapter-item" style="color: var(--accent); border: none;">Error: ${escapeHtml(error.message)}</li>`;
   }
@@ -1835,9 +1835,9 @@ async function triggerAnalysis() {
 // ============================================================
 
 async function seekTo(seconds) {
-  debugLog("[YouTube Digest Panel] seekTo called with:", seconds);
+  debugLog("[WatchToSay Panel] seekTo called with:", seconds);
   if (seconds === undefined || seconds === null) {
-    debugLog("[YouTube Digest Panel] seekTo aborted - no seconds value");
+    debugLog("[WatchToSay Panel] seekTo aborted - no seconds value");
     return;
   }
 
@@ -1851,11 +1851,11 @@ async function seekTo(seconds) {
     if (youtubeTabId) {
       try {
         await chrome.tabs.sendMessage(youtubeTabId, payload);
-        debugLog("[YouTube Digest Panel] seekTo direct success");
+        debugLog("[WatchToSay Panel] seekTo direct success");
         return;
       } catch (directErr) {
         debugLog(
-          "[YouTube Digest Panel] Direct seekTo failed, falling back to relay:",
+          "[WatchToSay Panel] Direct seekTo failed, falling back to relay:",
           directErr.message,
         );
       }
@@ -1866,9 +1866,9 @@ async function seekTo(seconds) {
       action: "relayToContent",
       payload,
     });
-    debugLog("[YouTube Digest Panel] seekTo relay result:", result);
+    debugLog("[WatchToSay Panel] seekTo relay result:", result);
   } catch (error) {
-    console.error("[YouTube Digest Panel] seekTo error:", error);
+    console.error("[WatchToSay Panel] seekTo error:", error);
   }
 }
 
@@ -2131,7 +2131,7 @@ function setupExplainFeature() {
           button.disabled = false;
         }, 900);
       } catch (error) {
-        console.error("[YouTube Digest] Save selected note error:", error);
+        console.error("[WatchToSay] Save selected note error:", error);
         button.textContent = "Error";
         setTimeout(() => {
           button.textContent = originalText;
@@ -2367,7 +2367,7 @@ async function evictOldCacheEntries(maxEntries) {
       .map((e) => e.key);
     if (toRemove.length > 0) {
       await chrome.storage.local.remove(toRemove);
-      debugLog(`[YouTube Digest] Evicted ${toRemove.length} old cache entries`);
+      debugLog(`[WatchToSay] Evicted ${toRemove.length} old cache entries`);
     }
   } catch (error) {
     console.error("Cache eviction error:", error);
@@ -2431,7 +2431,7 @@ async function loadNotes(videoId) {
       renderNotes(result.notes, videoId);
     }
   } catch (error) {
-    console.error("[YouTube Digest Panel] Load notes error:", error);
+    console.error("[WatchToSay Panel] Load notes error:", error);
   }
 }
 
@@ -2553,7 +2553,7 @@ async function deleteNote(noteId) {
       noteId: noteId,
     });
   } catch (error) {
-    console.error("[YouTube Digest Panel] Delete note error:", error);
+    console.error("[WatchToSay Panel] Delete note error:", error);
   }
 }
 
@@ -2733,7 +2733,7 @@ async function loadTranscriptViewState(videoId) {
     if (!Number.isFinite(scrollTop) || scrollTop < 0) return null;
     return { videoId, scrollTop };
   } catch (error) {
-    console.error("[YouTube Digest] Reading position load error:", error);
+    console.error("[WatchToSay] Reading position load error:", error);
     return null;
   }
 }
@@ -2757,7 +2757,7 @@ async function saveTranscriptViewState(videoId, scrollTop) {
     );
     await storage.set({ [TRANSCRIPT_VIEW_STATE_KEY]: recentStates });
   } catch (error) {
-    console.error("[YouTube Digest] Reading position save error:", error);
+    console.error("[WatchToSay] Reading position save error:", error);
   }
 }
 

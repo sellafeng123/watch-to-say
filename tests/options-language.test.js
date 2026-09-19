@@ -32,11 +32,11 @@ function createLocalStorage() {
 test("Settings copy covers English and Simplified Chinese", () => {
   assert.equal(
     options.translate("en", "pageTitle"),
-    "YouTube Digest to Corpus Palace Settings",
+    "WatchToSay Settings",
   );
   assert.equal(
     options.translate("zh-CN", "pageTitle"),
-    "YouTube Digest to Corpus Palace 设置",
+    "WatchToSay 设置",
   );
   assert.equal(options.translate("en", "saveSettings"), "Save settings");
   assert.equal(options.translate("zh-CN", "saveSettings"), "保存设置");
@@ -143,11 +143,11 @@ test("customization guidance is concise and has a visible placeholder reminder",
   );
   assert.equal(
     options.translate("en", "customizationStepFolder"),
-    "Open the extracted YouTube Digest to Corpus Palace project folder in your coding agent.",
+    "Open the extracted WatchToSay project folder in your coding agent.",
   );
   assert.equal(
     options.translate("zh-CN", "customizationStepFolder"),
-    "在编程 Agent 中打开 YouTube Digest to Corpus Palace 解压后的项目文件夹。",
+    "在编程 Agent 中打开 WatchToSay 解压后的项目文件夹。",
   );
   assert.doesNotMatch(html, /~\/Documents\/youtube-digest/);
   assert.doesNotMatch(html, /%USERPROFILE%\\Documents\\youtube-digest/);
@@ -163,7 +163,7 @@ test("customization prompt switches languages and preserves technical values", (
   assert.match(html, /https:\/\/dash\.supadata\.ai\/auth\/sign-up/);
   assert.match(html, /https:\/\/platform\.deepseek\.com\/api_keys/);
   assert.ok(html.includes(`>${englishPrompt}</textarea>`));
-  assert.match(chinesePrompt, /^请把当前本地 YouTube Digest to Corpus Palace 工作区改为使用/);
+  assert.match(chinesePrompt, /^请把当前本地 WatchToSay 工作区改为使用/);
   assert.notEqual(chinesePrompt, englishPrompt);
   assert.match(
     englishPrompt,

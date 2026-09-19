@@ -5,7 +5,7 @@ const YTD_OPTIONS = (() => {
 
   const COPY = {
     en: {
-      pageTitle: "YouTube Digest to Corpus Palace Settings",
+      pageTitle: "WatchToSay Settings",
       languageGroupLabel: "Interface language",
       heading: "Bring your own API keys",
       lede:
@@ -28,7 +28,7 @@ const YTD_OPTIONS = (() => {
       providerBadge: "Supported in this version",
       deepseekApiKeyLabel: "DeepSeek API key",
       deepseekHelp:
-        "YouTube Digest to Corpus Palace uses DeepSeek V4 Flash for overviews, explanations, translation, and note polishing. ",
+        "WatchToSay uses DeepSeek V4 Flash for overviews, explanations, translation, and note polishing. ",
       deepseekLink: "Create a DeepSeek API key",
       deepseekHelpSuffix: ".",
       privacyNote:
@@ -41,7 +41,7 @@ const YTD_OPTIONS = (() => {
       customizationIntro:
         "You can edit the prompt directly. Complete these three steps before copying:",
       customizationStepFolder:
-        "Open the extracted YouTube Digest to Corpus Palace project folder in your coding agent.",
+        "Open the extracted WatchToSay project folder in your coding agent.",
       customizationStepReplace:
         "Replace [PROVIDER] and [MODEL] with the service and model you want to use.",
       customizationStepKeys:
@@ -51,7 +51,7 @@ const YTD_OPTIONS = (() => {
       customizationReminder:
         "Before copying, replace [PROVIDER] and [MODEL] with the provider and model you want to use.",
       customizationPrompt:
-        "Customize this local YouTube Digest to Corpus Palace workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is YouTube Digest to Corpus Palace. If verification fails, stop and ask me to open the extracted YouTube Digest to Corpus Palace project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.",
+        "Customize this local WatchToSay workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is WatchToSay. If verification fails, stop and ask me to open the extracted WatchToSay project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.",
       copyCustomizationPrompt: "Copy edited prompt",
       questionBankTitle: "Speaking question banks",
       questionBankHelp:
@@ -114,7 +114,7 @@ const YTD_OPTIONS = (() => {
       saving: "Saving…",
       addSupadataKey: "Add a Supadata API key.",
       addDeepseekKey: "Add a DeepSeek API key.",
-      saved: "Saved. Reopen YouTube Digest to Corpus Palace to use these settings.",
+      saved: "Saved. Reopen WatchToSay to use these settings.",
       saveFailed: "Could not save settings. Please try again.",
       copying: "Copying…",
       promptCopied: "Edited prompt copied.",
@@ -125,12 +125,12 @@ const YTD_OPTIONS = (() => {
       notesDeleted: "Deleted all saved notes.",
       resetConfirm:
         "Delete API keys, cached digests, translations, and saved notes from this Chrome profile?",
-      allDataDeleted: "All YouTube Digest to Corpus Palace data was deleted.",
+      allDataDeleted: "All WatchToSay data was deleted.",
       settingsLoadFailed:
         "Could not load saved settings. You can still preview this page.",
     },
     "zh-CN": {
-      pageTitle: "YouTube Digest to Corpus Palace 设置",
+      pageTitle: "WatchToSay 设置",
       languageGroupLabel: "界面语言",
       heading: "使用你自己的 API 密钥",
       lede:
@@ -152,7 +152,7 @@ const YTD_OPTIONS = (() => {
       providerBadge: "当前版本支持",
       deepseekApiKeyLabel: "DeepSeek API 密钥",
       deepseekHelp:
-        "YouTube Digest to Corpus Palace 使用 DeepSeek V4 Flash 生成概览、解释内容、翻译字幕和润色笔记。",
+        "WatchToSay 使用 DeepSeek V4 Flash 生成概览、解释内容、翻译字幕和润色笔记。",
       deepseekLink: "创建 DeepSeek API 密钥",
       deepseekHelpSuffix: "。",
       privacyNote:
@@ -164,7 +164,7 @@ const YTD_OPTIONS = (() => {
       agentBadge: "可交给编程 Agent",
       customizationIntro: "你可以直接编辑提示词。复制前完成以下三步：",
       customizationStepFolder:
-        "在编程 Agent 中打开 YouTube Digest to Corpus Palace 解压后的项目文件夹。",
+        "在编程 Agent 中打开 WatchToSay 解压后的项目文件夹。",
       customizationStepReplace:
         "把 [PROVIDER] 和 [MODEL] 替换成你想使用的服务和模型。",
       customizationStepKeys:
@@ -174,7 +174,7 @@ const YTD_OPTIONS = (() => {
       customizationReminder:
         "复制前，请先把 [PROVIDER] 和 [MODEL] 替换成你想使用的服务和模型。",
       customizationPrompt:
-        "请把当前本地 YouTube Digest to Corpus Palace 工作区改为使用 [PROVIDER] 提供的 [MODEL]。只在当前工作区中操作。编辑前，先确认其中包含 manifest.json，且 manifest 中的 name 是 YouTube Digest to Corpus Palace。如果验证失败，请停止，并让我在编程 Agent 中打开 YouTube Digest to Corpus Palace 解压后的项目文件夹。不要搜索其他文件夹，不要编辑猜测的副本，不要假设安装路径，也不要声称 Chrome 可以显示操作系统中的绝对源码路径。更新该服务的 API endpoint、请求格式和最少的 Chrome host permissions。保留用户自带密钥模式和 Chrome 本地存储。不要把 API 密钥写入源代码、提交记录、日志、截图、这段提示词或聊天；代码准备好后，请告诉我应该在哪里自行填写密钥。DeepSeek 专用的请求参数和重试逻辑继续只用于 DeepSeek。新服务的专属规则请单独处理，避免相互影响。更新 README.md、README.zh-CN.md、PRIVACY.md、SECURITY.md 和测试。运行 npm test、npm run check 和 npm run package。最后，说明如何重新加载已解压的扩展，并在真实 YouTube 视频上测试。",
+        "请把当前本地 WatchToSay 工作区改为使用 [PROVIDER] 提供的 [MODEL]。只在当前工作区中操作。编辑前，先确认其中包含 manifest.json，且 manifest 中的 name 是 WatchToSay。如果验证失败，请停止，并让我在编程 Agent 中打开 WatchToSay 解压后的项目文件夹。不要搜索其他文件夹，不要编辑猜测的副本，不要假设安装路径，也不要声称 Chrome 可以显示操作系统中的绝对源码路径。更新该服务的 API endpoint、请求格式和最少的 Chrome host permissions。保留用户自带密钥模式和 Chrome 本地存储。不要把 API 密钥写入源代码、提交记录、日志、截图、这段提示词或聊天；代码准备好后，请告诉我应该在哪里自行填写密钥。DeepSeek 专用的请求参数和重试逻辑继续只用于 DeepSeek。新服务的专属规则请单独处理，避免相互影响。更新 README.md、README.zh-CN.md、PRIVACY.md、SECURITY.md 和测试。运行 npm test、npm run check 和 npm run package。最后，说明如何重新加载已解压的扩展，并在真实 YouTube 视频上测试。",
       copyCustomizationPrompt: "复制编辑后的提示词",
       questionBankTitle: "口语题库",
       questionBankHelp:
@@ -235,7 +235,7 @@ const YTD_OPTIONS = (() => {
       saving: "正在保存…",
       addSupadataKey: "请添加 Supadata API 密钥。",
       addDeepseekKey: "请添加 DeepSeek API 密钥。",
-      saved: "已保存。请重新打开 YouTube Digest to Corpus Palace 以使用这些设置。",
+      saved: "已保存。请重新打开 WatchToSay 以使用这些设置。",
       saveFailed: "无法保存设置，请重试。",
       copying: "正在复制…",
       promptCopied: "已复制编辑后的提示词。",
@@ -244,7 +244,7 @@ const YTD_OPTIONS = (() => {
       notesDeleted: "已删除全部已保存的笔记。",
       resetConfirm:
         "要从当前 Chrome 个人资料中删除 API 密钥、缓存摘要、翻译和已保存的笔记吗？",
-      allDataDeleted: "已删除全部 YouTube Digest to Corpus Palace 数据。",
+      allDataDeleted: "已删除全部 WatchToSay 数据。",
       settingsLoadFailed: "无法加载已保存的设置，但你仍可预览此页面。",
     },
   };

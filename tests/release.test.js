@@ -22,7 +22,7 @@ test("manifest uses minimized install-time permissions", () => {
   assert.ok(!manifest.permissions.includes("activeTab"));
   assert.ok(manifest.host_permissions.includes("https://api.deepseek.com/*"));
   assert.equal(Object.hasOwn(manifest, "optional_host_permissions"), false);
-  assert.equal(manifest.version, "2.4.3");
+  assert.equal(manifest.version, "2.5.0");
 });
 
 test("release allowlist includes every declared Corpus Palace runtime module", () => {
@@ -157,7 +157,7 @@ fi
     assert.notEqual(malformed.status, 0, malformed.stdout);
     assert.match(malformed.stderr, /local question bank validation failed/i);
     assert.equal(
-      fs.existsSync(path.join(fixtureRoot, "dist/youtube-digest-v2.1.0-local-with-question-bank.zip")),
+      fs.existsSync(path.join(fixtureRoot, "dist/watch-to-say-v2.1.0-local-with-question-bank.zip")),
       false,
     );
 
@@ -224,7 +224,7 @@ fi
 
     const packaged = runPackage();
     assert.equal(packaged.status, 0, packaged.stderr);
-    assert.match(packaged.stdout, /youtube-digest-v2\.1\.0-local-with-question-bank\.zip/);
+    assert.match(packaged.stdout, /watch-to-say-v2\.1\.0-local-with-question-bank\.zip/);
     assert.match(packaged.stdout, /SHA-256: [a-f0-9]{64}/);
     assert.deepEqual(
       fs.readFileSync(logPath, "utf8").trim().split("\n").slice(-3),
@@ -233,7 +233,7 @@ fi
 
     const archivePath = path.join(
       fixtureRoot,
-      "dist/youtube-digest-v2.1.0-local-with-question-bank.zip",
+      "dist/watch-to-say-v2.1.0-local-with-question-bank.zip",
     );
     const archiveList = spawnSync("unzip", ["-Z1", archivePath], {
       cwd: fixtureRoot,
@@ -275,17 +275,17 @@ test("release copy documents current scope without em dashes", () => {
   assert.doesNotMatch(manifest.description, /—/);
   assert.doesNotMatch(packageJson.description, /—/);
 
-  assert.equal(manifest.name, "YouTube Digest to Corpus Palace");
-  assert.equal(packageJson.name, "youtube-digest");
-  assert.match(read("scripts/package-extension.sh"), /youtube-digest-v\$version\.zip/);
+  assert.equal(manifest.name, "WatchToSay");
+  assert.equal(packageJson.name, "watch-to-say");
+  assert.match(read("scripts/package-extension.sh"), /watch-to-say-v\$version\.zip/);
   assert.doesNotMatch(
     [readme, chineseReadme, read("PRIVACY.md"), read("SECURITY.md")].join("\n"),
     /\bYT Digest\b/,
   );
-  assert.match(readme, /^# YouTube Digest to Corpus Palace$/m);
+  assert.match(readme, /^# WatchToSay$/m);
   assert.match(
     readme,
-    /Turn every YouTube video into a resource for deep learning\./,
+    /Turn what you watch into what you can say\./,
   );
   assert.doesNotMatch(readme, /before deciding how much of it to watch/i);
   assert.match(readme, /^## Install with your coding agent$/m);
@@ -307,8 +307,8 @@ test("release copy documents current scope without em dashes", () => {
   );
   assert.match(readme, /upstream issues and pull requests are not accepted/i);
   assert.doesNotMatch(readme, /^## Contributing$/m);
-  assert.match(chineseReadme, /^# YouTube Digest to Corpus Palace$/m);
-  assert.match(chineseReadme, /把每个 YouTube 视频变成一份可以深入学习的资料/);
+  assert.match(chineseReadme, /^# WatchToSay$/m);
+  assert.match(chineseReadme, /把你看过的英语，变成你说得出的表达。/);
   assert.match(chineseReadme, /^## 让你的编程 Agent 帮你安装$/m);
   assert.match(
     chineseReadme,
@@ -384,7 +384,7 @@ test("release copy documents current scope without em dashes", () => {
   );
   assert.match(
     optionsPage,
-    /class="customization-steps"[\s\S]*Open the extracted YouTube Digest to Corpus Palace project folder in your coding[\s\S]*Replace \[PROVIDER\] and \[MODEL\][\s\S]*Never include API keys[\s\S]*<\/ol>/,
+    /class="customization-steps"[\s\S]*Open the extracted WatchToSay project folder in your coding[\s\S]*Replace \[PROVIDER\] and \[MODEL\][\s\S]*Never include API keys[\s\S]*<\/ol>/,
   );
   assert.match(
     optionsPage,
@@ -400,7 +400,7 @@ test("release copy documents current scope without em dashes", () => {
   assert.match(optionsScript, /Edited prompt copied\./);
   assert.match(optionsScript, /migration\.migrated[\s\S]*storage\.set/);
 
-  const customizationPrompt = `Customize this local YouTube Digest to Corpus Palace workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is YouTube Digest to Corpus Palace. If verification fails, stop and ask me to open the extracted YouTube Digest to Corpus Palace project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.`;
+  const customizationPrompt = `Customize this local WatchToSay workspace to use [PROVIDER] with [MODEL]. Work only in the current workspace. Before editing, verify that it contains manifest.json and that the manifest name is WatchToSay. If verification fails, stop and ask me to open the extracted WatchToSay project folder in my coding agent. Do not search other folders, edit a guessed copy, assume an installation path, or claim Chrome can reveal the absolute OS source path. Update the provider's API endpoint, request format, and minimum Chrome host permissions. Preserve bring-your-own-key and local Chrome storage. Never put API keys in source code, commits, logs, screenshots, this prompt, or chat; after the code is ready, tell me where to enter the key myself. Keep DeepSeek-only request fields and retry behavior isolated to DeepSeek. Handle provider-specific rules separately so one provider does not affect another. Update README.md, README.zh-CN.md, PRIVACY.md, SECURITY.md, and tests. Run npm test, npm run check, and npm run package. Then explain how to reload the unpacked extension and test it on a real YouTube video.`;
   assert.ok(optionsPage.includes(`>${customizationPrompt}</textarea>`));
   assert.doesNotMatch(customizationPrompt, /Documents|USERPROFILE/);
 
@@ -410,11 +410,11 @@ test("release copy documents current scope without em dashes", () => {
   assert.match(readme, /vocabulary notebook/i);
   assert.match(
     readme,
-    /first open the exact YouTube Digest to Corpus Palace project folder that Chrome loaded through \*\*Load unpacked\*\* in your coding agent/,
+    /first open the exact WatchToSay project folder that Chrome loaded through \*\*Load unpacked\*\* in your coding agent/,
   );
   assert.match(
     chineseReadme,
-    /先在编程 Agent 中打开 Chrome 通过“加载已解压的扩展程序”使用的那个准确的 YouTube Digest to Corpus Palace 项目文件夹/,
+    /先在编程 Agent 中打开 Chrome 通过“加载已解压的扩展程序”使用的那个准确的 WatchToSay 项目文件夹/,
   );
 
   const publishedDocs = [

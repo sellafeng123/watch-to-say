@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-YouTube Digest to Corpus Palace is a small GitHub-only project. Security fixes are made on the latest code on `main` and, when releases are published, the latest GitHub release. Older snapshots are not supported.
+WatchToSay is a small GitHub-only project. Security fixes are made on the latest code on `main` and, when releases are published, the latest GitHub release. Older snapshots are not supported.
 
 ## Report a vulnerability privately
 

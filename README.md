@@ -1,8 +1,14 @@
-# YouTube Digest to Corpus Palace
+# WatchToSay
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Turn every YouTube video into a resource for deep learning. Turn YouTube input into a personal English-speaking corpus with a Chrome side panel that keeps every expression inside its original video context, then guides you through contextual understanding, listening recall, expression internalization, speaking output, and long-term organization in Obsidian.
+> **Turn what you watch into what you can say.**
+
+Watching English is not the same as being able to speak it. WatchToSay keeps useful words, chunks, and sentence frames inside their original YouTube context, then guides you through a complete **Watch-to-Say Loop**: understand, recall, make it yours, and say it out.
+
+Everything you choose can be organized in your personal **Corpus Palace**, so expressions do not disappear after the video ends.
+
+**Watch it. Make it yours. Say it.**
 
 ![YouTube video with the Corpus Palace transcript side panel](docs/assets/readme/hero.png)
 
@@ -54,6 +60,12 @@ Paste question-bank text, choose the profiles that may use it, let DeepSeek reco
 
 ![Speaking question-bank import and management settings](docs/assets/readme/question-bank-management.png)
 
+## New in v2.5.0
+
+- The extension is now **WatchToSay**, built around one promise: **Turn what you watch into what you can say.**
+- **Corpus Palace** remains the name of the personal space where your saved expressions accumulate over time.
+- Product wording now follows the Watch-to-Say learning loop across Chrome, Settings, exports, release packages, and documentation.
+
 ## New in v2.4.3
 
 - The transparent-background Corpus Palace notebook logo now carries the lavender-and-mint identity across Chrome, the side panel, and release packages.
@@ -63,7 +75,7 @@ Paste question-bank text, choose the profiles that may use it, let DeepSeek reco
 
 ## New in v2.3.3
 
-- The visible product name is now consistently **YouTube Digest to Corpus Palace** across Chrome, Settings, exports, and documentation.
+- The visible product name was made consistent across Chrome, Settings, exports, and documentation.
 - Practice-material validation now keeps valid expressions and retries only failed items with the exact validation reason.
 - If a targeted repair still fails, the error identifies the expression and problem instead of reporting only an incomplete batch.
 
@@ -136,9 +148,9 @@ Question sources behave as follows:
 - Work, daily conversation, and travel can use **Smart mix**, **My bank only**, or **DeepSeek only**. Smart mix prefers an eligible unused learner question and uses DeepSeek only when it needs a new question.
 - The public repository contains only a synthetic schema/test sample. It is not offered as IELTS content.
 
-The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/youtube-digest-v2.4.3-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
+The supplied seasonal IELTS PDF may contain third-party material. Its OCR-derived bank stays in `data/ielts-question-bank.local.json`, which is Git-ignored and excluded from the public package. Only use `npm run package:local` after you have reviewed and approved a local bank and have permission to use its content. The command validates the bank, runs the test and public-release checks, creates `dist/watch-to-say-v2.5.0-local-with-question-bank.zip`, scans the archive inputs for common credentials, and prints a SHA-256 digest. `npm run package` always creates the public ZIP without that bank.
 
-To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for YouTube Digest to Corpus Palace at `chrome://extensions` and refresh open YouTube tabs.
+To install a local package, extract that ZIP into a permanent folder, choose that exact folder in Chrome's **Load unpacked** flow, and keep it in place. After rebuilding or replacing the extracted files, click **Reload** for WatchToSay at `chrome://extensions` and refresh open YouTube tabs.
 
 The extension has no runtime PDF import, PDF renderer, or OCR engine. The macOS OCR workflow above is one-time development tooling and is never included in either extension runtime.
 
@@ -158,7 +170,7 @@ Your agent should:
 
 Keep this folder in the same place after installation. If you move or delete it, Chrome's unpacked extension stops working until you load the extension again from its new permanent folder.
 
-Never paste an API key into an AI chat, source file, screenshot, or public message. Enter keys yourself, directly in the YouTube Digest to Corpus Palace Settings page. Your coding agent can point to the correct field without seeing the key.
+Never paste an API key into an AI chat, source file, screenshot, or public message. Enter keys yourself, directly in the WatchToSay Settings page. Your coding agent can point to the correct field without seeing the key.
 
 ## Install manually
 
@@ -171,13 +183,13 @@ If you prefer to do it yourself:
 5. Turn on **Developer mode**.
 6. Click **Load unpacked**.
 7. Select the exact project folder you chose, which must contain `manifest.json`.
-8. Pin YouTube Digest to Corpus Palace from Chrome's Extensions menu if you want quick access.
+8. Pin WatchToSay from Chrome's Extensions menu if you want quick access.
 
-Because this is an unpacked extension, it does not update automatically. After downloading an update or changing local files, click **Reload** on the YouTube Digest to Corpus Palace card at `chrome://extensions`, then refresh open YouTube tabs. Moving or deleting the source folder breaks the unpacked extension until you load it again from the new location.
+Because this is an unpacked extension, it does not update automatically. After downloading an update or changing local files, click **Reload** on the WatchToSay card at `chrome://extensions`, then refresh open YouTube tabs. Moving or deleting the source folder breaks the unpacked extension until you load it again from the new location.
 
 ## Set up your API keys
 
-YouTube Digest to Corpus Palace needs two keys under your own provider accounts:
+WatchToSay needs two keys under your own provider accounts:
 
 1. A **Supadata API key** to retrieve YouTube transcripts.
 2. A **DeepSeek API key** for overviews, explanations, translation, and automatic note polishing.
@@ -188,7 +200,7 @@ YouTube Digest to Corpus Palace needs two keys under your own provider accounts:
 2. Create an account and complete the short onboarding flow.
 3. Supadata generates an API key automatically during onboarding.
 4. Open the [Supadata dashboard](https://dash.supadata.ai/) whenever you need to find or manage the key.
-5. Copy the key and paste it into **Supadata API key** in YouTube Digest to Corpus Palace Settings.
+5. Copy the key and paste it into **Supadata API key** in WatchToSay Settings.
 
 See the [official Supadata documentation](https://docs.supadata.ai/) if the dashboard flow changes.
 
@@ -196,14 +208,14 @@ See the [official Supadata documentation](https://docs.supadata.ai/) if the dash
 
 1. Open the official [DeepSeek API Keys page](https://platform.deepseek.com/api_keys).
 2. Sign in or create a DeepSeek Platform account when prompted.
-3. Choose **Create new API key**, give it a recognizable name such as `YouTube Digest to Corpus Palace`, and create it.
+3. Choose **Create new API key**, give it a recognizable name such as `WatchToSay`, and create it.
 4. Copy the key immediately. The full key may only be shown once.
-5. Paste it into **DeepSeek API key** in YouTube Digest to Corpus Palace Settings.
+5. Paste it into **DeepSeek API key** in WatchToSay Settings.
 6. If DeepSeek reports insufficient balance, add credit in your DeepSeek Platform account and try again.
 
 See the [official DeepSeek API documentation](https://api-docs.deepseek.com/) for current account and API details.
 
-Open **Settings** from the side panel. You can also open the YouTube Digest to Corpus Palace **Options** page from its card at `chrome://extensions` or by right-clicking its toolbar icon. Paste keys only into these Settings fields. Never paste a key into an AI chat, repository file, screenshot, or public message.
+Open **Settings** from the side panel. You can also open the WatchToSay **Options** page from its card at `chrome://extensions` or by right-clicking its toolbar icon. Paste keys only into these Settings fields. Never paste a key into an AI chat, repository file, screenshot, or public message.
 
 The published version supports DeepSeek V4 Flash as its only AI provider:
 
@@ -212,14 +224,14 @@ Base URL: https://api.deepseek.com
 Model: deepseek-v4-flash
 ```
 
-YouTube Digest to Corpus Palace sends every DeepSeek request in non-thinking mode for responsive, predictable interactions. The endpoint and model are fixed in Settings, so the only AI credential you enter is your DeepSeek API key. To use another provider or model, copy the safe customization prompt in Settings and give it to a coding agent for your local copy. Never add an API key to that prompt or chat.
+WatchToSay sends every DeepSeek request in non-thinking mode for responsive, predictable interactions. The endpoint and model are fixed in Settings, so the only AI credential you enter is your DeepSeek API key. To use another provider or model, copy the safe customization prompt in Settings and give it to a coding agent for your local copy. Never add an API key to that prompt or chat.
 
 Keys and settings are stored in Chrome's local extension storage on your device. Release builds do not include or use `config.js`.
 
-## Use YouTube Digest to Corpus Palace
+## Use WatchToSay
 
 1. Open a standard YouTube watch page with captions.
-2. Click the YouTube Digest to Corpus Palace extension icon to open the side panel.
+2. Click the WatchToSay extension icon to open the side panel.
 3. Read the timestamped transcript, or choose **Original**, **中文**, or **双语**.
 4. Open **Overview** when you want AI-generated chapters and key quotes.
 5. Select transcript text when you want an AI explanation.
@@ -229,7 +241,7 @@ Keys and settings are stored in Chrome's local extension storage on your device.
 
 - Google Chrome 116 or newer, using the Side Panel API.
 - Standard `youtube.com/watch` video pages.
-- Native subtitle tracks returned by Supadata. YouTube Digest to Corpus Palace prefers English when available, but may show another native language.
+- Native subtitle tracks returned by Supadata. WatchToSay prefers English when available, but may show another native language.
 - Original, Simplified Chinese, and aligned bilingual transcript views.
 - AI overviews, selected-text explanations, translation, and automatic note polishing.
 - Local notes and a local cache for recent transcript and digest results.
@@ -237,7 +249,7 @@ Keys and settings are stored in Chrome's local extension storage on your device.
 
 Shorts, live streams, private or access-restricted videos, and videos without an available native transcript may not work. Firefox, Safari, mobile browsers, and other Chromium browsers are not currently tested or supported.
 
-YouTube Digest to Corpus Palace forces Supadata's `mode=native`. It does not request AI-generated transcripts or perform local audio transcription when native captions are unavailable.
+WatchToSay forces Supadata's `mode=native`. It does not request AI-generated transcripts or perform local audio transcription when native captions are unavailable.
 
 ## Supadata free tier and request costs
 
@@ -246,12 +258,12 @@ Current as of August 9, 2026, the [Supadata pricing page](https://supadata.ai/pr
 The [Supadata transcript documentation](https://docs.supadata.ai/get-transcript) describes the transcript request modes and credit behavior:
 
 - A native transcript request uses **1 credit**, regardless of video duration.
-- A generated transcript costs **2 credits per video minute**. YouTube Digest to Corpus Palace does not use this path because it forces `mode=native`.
+- A generated transcript costs **2 credits per video minute**. WatchToSay does not use this path because it forces `mode=native`.
 - An unavailable native lookup returned as HTTP `206` still uses **1 credit**.
 
 With the current native-only behavior, the free tier can cover roughly 100 transcript lookups per month when each request succeeds once. Retries and unavailable-caption lookups also consume credits, so actual successful-video coverage can be lower.
 
-DeepSeek usage is separate from Supadata. YouTube Digest to Corpus Palace does not collect payments or resell access. Set spending limits and monitor both accounts.
+DeepSeek usage is separate from Supadata. WatchToSay does not collect payments or resell access. Set spending limits and monitor both accounts.
 
 ## DeepSeek V4 Flash pricing
 
@@ -276,7 +288,7 @@ The lower end assumes most repeated input hits DeepSeek's cache. The upper end a
 
 This is a personal remix project. Upstream issues and pull requests are not accepted. If something breaks or you want a new feature, download or fork your own copy and ask your coding agent to fix, remix, or personalize it for you.
 
-YouTube Digest to Corpus Palace uses plain HTML, CSS, and JavaScript with no build step, so it is a friendly starting point for agent-assisted projects. Ideas to try:
+WatchToSay uses plain HTML, CSS, and JavaScript with no build step, so it is a friendly starting point for agent-assisted projects. Ideas to try:
 
 - Add more translation languages and let each person choose a learning language.
 - Create customized summary templates for lectures, interviews, tutorials, reviews, or research talks.
@@ -288,24 +300,24 @@ YouTube Digest to Corpus Palace uses plain HTML, CSS, and JavaScript with no bui
 
 Ask your agent to preserve the bring-your-own-key model, keep secrets out of source files, run the checks below, and test the remix on real videos.
 
-If you want another AI provider or model, first open the exact YouTube Digest to Corpus Palace project folder that Chrome loaded through **Load unpacked** in your coding agent. Then open YouTube Digest to Corpus Palace Settings and use **Copy customization prompt**. Replace the `[PROVIDER]` and `[MODEL]` placeholders before sending it. Do not include any API key in the prompt or chat. After the agent updates your local copy, enter the key yourself in the Settings field it identifies.
+If you want another AI provider or model, first open the exact WatchToSay project folder that Chrome loaded through **Load unpacked** in your coding agent. Then open WatchToSay Settings and use **Copy customization prompt**. Replace the `[PROVIDER]` and `[MODEL]` placeholders before sending it. Do not include any API key in the prompt or chat. After the agent updates your local copy, enter the key yourself in the Settings field it identifies.
 
 ## Privacy and data flow
 
-YouTube Digest to Corpus Palace makes provider requests directly from the extension:
+WatchToSay makes provider requests directly from the extension:
 
 1. It sends a canonical YouTube watch URL to Supadata to request the native transcript.
 2. It sends the transcript and relevant video metadata to DeepSeek when you request AI features.
 3. Focused features send only the content they need, such as selected text with context or small transcript batches for translation.
 4. It stores keys, settings, notes, and recent cache entries locally in Chrome.
 
-There is no YouTube Digest to Corpus Palace account system, advertising, analytics, or telemetry. Supadata and DeepSeek still receive data under their own terms and privacy policies. See [PRIVACY.md](PRIVACY.md) for details.
+There is no WatchToSay account system, advertising, analytics, or telemetry. Supadata and DeepSeek still receive data under their own terms and privacy policies. See [PRIVACY.md](PRIVACY.md) for details.
 
 ## Troubleshooting
 
 ### The Digest button is missing on a YouTube video
 
-- At `chrome://extensions`, find YouTube Digest to Corpus Palace and click **Reload**, then refresh the YouTube tab.
+- At `chrome://extensions`, find WatchToSay and click **Reload**, then refresh the YouTube tab.
 - Confirm that you are on a standard `https://www.youtube.com/watch?...` page, not a Short, embed, or live page.
 - The current version automatically follows YouTube when its responsive action bar changes. Wait a moment after the page finishes loading.
 - If you have an older downloaded copy, resizing the YouTube window horizontally once may reveal the button. Then download the latest version so resizing is no longer required.
@@ -314,11 +326,11 @@ There is no YouTube Digest to Corpus Palace account system, advertising, analyti
 ### The side panel does not open
 
 - Confirm that you are on a standard `https://www.youtube.com/watch?...` page.
-- At `chrome://extensions`, confirm YouTube Digest to Corpus Palace is enabled and click **Reload**.
+- At `chrome://extensions`, confirm WatchToSay is enabled and click **Reload**.
 - Refresh the YouTube tab after reloading the extension.
 - Ask your coding agent to inspect the extension if the problem continues.
 
-### YouTube Digest to Corpus Palace asks for setup
+### WatchToSay asks for setup
 
 - Open **Settings** and save both a Supadata key and a DeepSeek key.
 - This published version uses the fixed DeepSeek V4 Flash endpoint and model. There are no Base URL or Model fields to configure.
@@ -330,7 +342,7 @@ There is no YouTube Digest to Corpus Palace account system, advertising, analyti
 - Check your Supadata key, remaining credits, rate limit, and account status.
 - Remember that unavailable native lookups and manual retries may still consume credits.
 
-YouTube Digest to Corpus Palace will not fall back to generated transcription.
+WatchToSay will not fall back to generated transcription.
 
 ### AI requests fail
 
@@ -355,7 +367,7 @@ The agent should also reload the unpacked extension in Chrome and test several r
 
 ## Project origin and attribution
 
-YouTube Digest to Corpus Palace is a personal fork and extended remix of [YouTube Digest](https://github.com/zarazhangrui/youtube-digest) by Zara Zhang.
+WatchToSay is a personal fork and extended remix of [YouTube Digest](https://github.com/zarazhangrui/youtube-digest) by Zara Zhang.
 
 The original project is licensed under the MIT License. Its copyright and license notice are retained in [LICENSE](LICENSE). This fork adds the Corpus Palace contextual-learning workflow, expression internalization, multi-scenario speaking practice, question-bank management, and Obsidian export.
 

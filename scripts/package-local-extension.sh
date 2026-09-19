@@ -104,9 +104,9 @@ version="$(node -e 'const m=require(process.argv[1]); process.stdout.write(m.ver
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "unsafe manifest version: $version"
 
 mkdir -p "$dist_dir"
-temporary_dir="$(mktemp -d "$dist_dir/.youtube-digest-local-package.XXXXXX")"
-temporary_zip="$temporary_dir/youtube-digest-local.zip"
-output_zip="$dist_dir/youtube-digest-v$version-local-with-question-bank.zip"
+temporary_dir="$(mktemp -d "$dist_dir/.watch-to-say-local-package.XXXXXX")"
+temporary_zip="$temporary_dir/watch-to-say-local.zip"
+output_zip="$dist_dir/watch-to-say-v$version-local-with-question-bank.zip"
 
 cleanup() {
   [[ -f "$temporary_zip" ]] && rm -f "$temporary_zip"

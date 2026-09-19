@@ -1,8 +1,8 @@
 {
-  "name": "youtube-digest",
-  "version": "2.4.3",
+  "name": "watch-to-say",
+  "version": "2.5.0",
   "private": true,
-  "description": "Turn YouTube videos into a context-first English speaking corpus and guided practice flow.",
+  "description": "Turn what you watch into what you can say with contextual learning and guided speaking practice.",
   "license": "MIT",
   "scripts": {
     "test": "node --test tests/*.test.js",

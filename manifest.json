@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Digest to Corpus Palace",
-  "version": "2.4.3",
+  "name": "WatchToSay",
+  "version": "2.5.0",
   "minimum_chrome_version": "116",
-  "description": "Turn YouTube videos into a context-first English speaking corpus and guided practice flow.",
+  "description": "Turn what you watch into what you can say with contextual learning and guided speaking practice.",
   "permissions": ["sidePanel", "storage", "tabs", "scripting"],
   "host_permissions": [
     "https://www.youtube.com/*",
@@ -11,7 +11,7 @@
     "https://api.deepseek.com/*"
   ],
   "action": {
-    "default_title": "Open YouTube Digest to Corpus Palace",
+    "default_title": "Open WatchToSay",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
