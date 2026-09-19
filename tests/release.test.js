@@ -283,6 +283,8 @@ test("release copy documents current scope without em dashes", () => {
     /\bYT Digest\b/,
   );
   assert.match(readme, /^# WatchToSay$/m);
+  assert.match(readme, /https:\/\/github\.com\/sellafeng123\/watch-to-say/);
+  assert.doesNotMatch(readme, /sellafeng123\/youtube-digest-to-corpus-palace/);
   assert.match(
     readme,
     /Turn what you watch into what you can say\./,
@@ -291,7 +293,7 @@ test("release copy documents current scope without em dashes", () => {
   assert.match(readme, /^## Install with your coding agent$/m);
   assert.match(
     readme,
-    /permanent folder I choose[\s\S]*tell me its exact full path[\s\S]*If I need a suggestion during this first installation[\s\S]*`~\/Documents\/youtube-digest`[\s\S]*`%USERPROFILE%\\Documents\\youtube-digest`[\s\S]*do not assume either path/,
+    /permanent folder I choose[\s\S]*tell me its exact full path[\s\S]*If I need a suggestion during this first installation[\s\S]*`~\/Documents\/watch-to-say`[\s\S]*`%USERPROFILE%\\Documents\\watch-to-say`[\s\S]*do not assume either path/,
   );
   assert.match(
     readme,
@@ -308,11 +310,13 @@ test("release copy documents current scope without em dashes", () => {
   assert.match(readme, /upstream issues and pull requests are not accepted/i);
   assert.doesNotMatch(readme, /^## Contributing$/m);
   assert.match(chineseReadme, /^# WatchToSay$/m);
+  assert.match(chineseReadme, /https:\/\/github\.com\/sellafeng123\/watch-to-say/);
+  assert.doesNotMatch(chineseReadme, /sellafeng123\/youtube-digest-to-corpus-palace/);
   assert.match(chineseReadme, /把你看过的英语，变成你说得出的表达。/);
   assert.match(chineseReadme, /^## 让你的编程 Agent 帮你安装$/m);
   assert.match(
     chineseReadme,
-    /我选择的长期保留文件夹[\s\S]*告诉我准确的完整路径[\s\S]*第一次安装时需要位置建议[\s\S]*`~\/Documents\/youtube-digest`[\s\S]*`%USERPROFILE%\\Documents\\youtube-digest`[\s\S]*不要假设我一定使用这些路径/,
+    /我选择的长期保留文件夹[\s\S]*告诉我准确的完整路径[\s\S]*第一次安装时需要位置建议[\s\S]*`~\/Documents\/watch-to-say`[\s\S]*`%USERPROFILE%\\Documents\\watch-to-say`[\s\S]*不要假设我一定使用这些路径/,
   );
   assert.match(
     chineseReadme,

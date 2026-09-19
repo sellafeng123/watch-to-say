@@ -158,11 +158,11 @@ The extension has no runtime PDF import, PDF renderer, or OCR engine. The macOS 
 
 You do not need to understand the code or use the command line. Send this message to your coding agent:
 
-> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/sellafeng123/youtube-digest-to-corpus-palace
+> Download or clone this project into a permanent folder I choose, tell me its exact full path, and use that same folder for Chrome's Load unpacked step. If I need a suggestion during this first installation, offer `~/Documents/watch-to-say` on macOS or Linux, or `%USERPROFILE%\Documents\watch-to-say` on Windows, but do not assume either path. Walk me through installation and setup in simple terms. https://github.com/sellafeng123/watch-to-say
 
 Your agent should:
 
-1. Ask where you want to keep the project, download or clone it there, and tell you the exact full path. If you want a suggestion, it can offer `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows.
+1. Ask where you want to keep the project, download or clone it there, and tell you the exact full path. If you want a suggestion, it can offer `~/Documents/watch-to-say` on macOS or Linux, or `%USERPROFILE%\Documents\watch-to-say` on Windows.
 2. Open the official Supadata and DeepSeek pages below and help you create your own accounts.
 3. Walk you through selecting the exact project folder you chose in Chrome with **Load unpacked**.
 4. Show you where to enter your API keys in the extension's **Settings** page.
@@ -176,9 +176,9 @@ Never paste an API key into an AI chat, source file, screenshot, or public messa
 
 If you prefer to do it yourself:
 
-1. Open [github.com/sellafeng123/youtube-digest-to-corpus-palace](https://github.com/sellafeng123/youtube-digest-to-corpus-palace).
+1. Open [github.com/sellafeng123/watch-to-say](https://github.com/sellafeng123/watch-to-say).
 2. Choose **Code**, then **Download ZIP**.
-3. Choose a permanent folder and unzip the project there. Optional suggestions are `~/Documents/youtube-digest` on macOS or Linux, or `%USERPROFILE%\Documents\youtube-digest` on Windows. You may use a different folder.
+3. Choose a permanent folder and unzip the project there. Optional suggestions are `~/Documents/watch-to-say` on macOS or Linux, or `%USERPROFILE%\Documents\watch-to-say` on Windows. You may use a different folder.
 4. In Chrome, open `chrome://extensions`.
 5. Turn on **Developer mode**.
 6. Click **Load unpacked**.
