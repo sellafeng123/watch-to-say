@@ -11,7 +11,7 @@ Turn every YouTube video into a resource for deep learning. Turn YouTube input i
 1. **Watch with context.** Read searchable original, Chinese, or aligned bilingual subtitles and jump to any moment from its timestamp.
 2. **Highlight what you want to learn.** Select a word, chunk, or sentence frame directly in Transcript and generate an editable **AI contextual bilingual gloss**.
 3. **Internalize before output.** Complete listening recall first, then practice substitutions and create two sentences for every selected expression.
-4. **Speak with the whole set.** After every expression is marked as mastered, answer an IELTS or topic-based speaking question. The reference answer attempts to use all highlighted expressions and reports verified coverage.
+4. **Speak with the whole set.** Choose IELTS, work, daily conversation, or travel. After every expression is marked as mastered, answer one question built for that speaking scenario. The reference answer attempts to use all highlighted expressions and reports verified coverage.
 5. **Build your Corpus Palace.** Append expressions from the same video to one readable Obsidian table with timestamped context, learning notes, collocations, and paraphrases.
 
 Your API keys and learning data stay in local Chrome storage. The extension has no analytics, telemetry, included API credits, or developer-operated server. It is installed locally from GitHub and is not currently available in the Chrome Web Store.
@@ -36,9 +36,9 @@ Choose any number of highlighted expressions from the current video. Recall the 
 
 ![Listening recall and expression internalization flow](docs/assets/readme/listening-internalization.jpeg)
 
-### IELTS and topic-based speaking output
+### Speaking output for IELTS, work, daily conversation, and travel
 
-Practice one whole-set speaking question at a time. IELTS mode draws from an approved local question bank when one is installed; other profiles can use a saved learner bank or DeepSeek. Reference answers aim to incorporate every highlighted expression and show verified coverage.
+Choose from four speaking scenarios: **IELTS, work, daily conversation, and travel**. Practice one whole-set question at a time after internalization is complete. IELTS mode draws from an approved local question bank when one is installed; the other scenarios can use your imported question bank or let DeepSeek generate a relevant question from the current expressions. Reference answers aim to incorporate every highlighted expression and show verified coverage.
 
 ![IELTS speaking question, expression coverage, reference answer, and completion summary](docs/assets/readme/ielts-speaking-output.jpeg)
 
@@ -364,6 +364,12 @@ npm run package
 ```
 
 The agent should also reload the unpacked extension in Chrome and test several real YouTube videos. Automated checks do not prove that live provider requests and YouTube interactions work.
+
+## Project origin and attribution
+
+YouTube Digest to Corpus Palace is a personal fork and extended remix of [YouTube Digest](https://github.com/zarazhangrui/youtube-digest) by Zara Zhang.
+
+The original project is licensed under the MIT License. Its copyright and license notice are retained in [LICENSE](LICENSE). This fork adds the Corpus Palace contextual-learning workflow, expression internalization, multi-scenario speaking practice, question-bank management, and Obsidian export.
 
 ## License
 
